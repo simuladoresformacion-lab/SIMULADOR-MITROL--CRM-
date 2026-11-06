@@ -1,0 +1,2542 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simulador Call Center - IPPad Mitrol v4.10</title>
+<style>
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 13px;
+    user-select: none;
+}
+body {
+    background: #008080;
+    height: 100vh;
+    width: 100vw;
+    overflow: hidden;
+    position: relative;
+}
+.hidden { display: none !important; }
+
+/* ================= Escritorio ================= */
+.desktop {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100vw; height: calc(100vh - 36px);
+    padding: 20px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, 80px);
+    grid-template-rows: repeat(auto-fill, 90px);
+    grid-auto-flow: column;
+    gap: 15px;
+    z-index: 1;
+}
+.desktop-icon {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    width: 75px; height: 80px; cursor: pointer;
+    border: 1px transparent dashed; border-radius: 3px; padding: 4px;
+}
+.desktop-icon:hover { background-color: rgba(255,255,255,0.2); border-color: rgba(255,255,255,0.5); }
+.icon-img {
+    width: 36px; height: 36px; background: #0055ea; border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    color: white; font-weight: bold; font-size: 18px;
+    box-shadow: 2px 2px 5px rgba(0,0,0,0.3); margin-bottom: 5px;
+}
+.icon-img.mitrol-icon { background: linear-gradient(135deg, #003366, #0058e6); border: 1px solid #fff; font-style: italic; }
+.icon-img.generic { background: #e0e0e0; color: #444; border: 1px solid #999; }
+.icon-label { color: white; text-align: center; font-size: 10px; text-shadow: 1px 1px 2px #000; word-break: break-word; }
+
+/* ================= Ventana ================= */
+.window {
+    position: absolute;
+    width: min(1000px, 96vw);
+    height: min(720px, 94vh);
+    background: #fff;
+    border: 2px solid #1f2a2a;
+    border-radius: 10px;
+    box-shadow: 3px 3px 18px rgba(0,0,0,0.5);
+    display: flex; flex-direction: column;
+    z-index: 10;
+    overflow: hidden;
+}
+.window.maximized {
+    width: 100vw !important; height: calc(100vh - 36px) !important;
+    top: 0 !important; left: 0 !important;
+    border: none; border-radius: 0; box-shadow: none;
+}
+/* ventana del CRM */
+.crm-window { z-index: 11; width: min(980px, 94vw); height: min(640px, 90vh); }
+.crm-window .title-strip { background: #d4d4d4; }
+.crm-frame { flex: 1; width: 100%; border: 0; background: #fff; min-height: 0; }
+.window.interacting iframe { pointer-events: none; }
+.title-strip {
+    background: #e6e3b0;
+    height: 28px; min-height: 28px;
+    padding: 0 8px;
+    display: flex; align-items: center; justify-content: space-between;
+    cursor: move;
+    font-size: 12px; color: #222;
+    white-space: nowrap;
+}
+.title-strip span { font-size: 12px; }
+.title-strip .ipad { font-weight: bold; margin-right: 10px; }
+.strip-info { display: flex; gap: 22px; align-items: center; overflow: hidden; flex: 1; }
+.win-controls { display: flex; gap: 14px; align-items: center; cursor: default; margin-left: 10px; }
+.win-btn {
+    width: 22px; height: 20px; display: flex; align-items: center; justify-content: center;
+    cursor: pointer; font-size: 15px; font-weight: bold; color: #111; background: transparent; border: none;
+}
+.win-btn:hover { background: rgba(0,0,0,0.12); }
+.win-btn.close:hover { background: #e81123; color: #fff; }
+
+/* ================= Redimensionar ================= */
+.rz { position: absolute; z-index: 5000; }
+.rz[data-dir="n"]  { top: 0; left: 10px; right: 10px; height: 5px; cursor: ns-resize; }
+.rz[data-dir="s"]  { bottom: 0; left: 10px; right: 10px; height: 5px; cursor: ns-resize; }
+.rz[data-dir="e"]  { right: 0; top: 10px; bottom: 10px; width: 5px; cursor: ew-resize; }
+.rz[data-dir="w"]  { left: 0; top: 10px; bottom: 10px; width: 5px; cursor: ew-resize; }
+.rz[data-dir="ne"] { top: 0; right: 0; width: 12px; height: 12px; cursor: nesw-resize; }
+.rz[data-dir="nw"] { top: 0; left: 0; width: 12px; height: 12px; cursor: nwse-resize; }
+.rz[data-dir="se"] { bottom: 0; right: 0; width: 14px; height: 14px; cursor: nwse-resize; }
+.rz[data-dir="sw"] { bottom: 0; left: 0; width: 12px; height: 12px; cursor: nesw-resize; }
+.window.maximized .rz { display: none; }
+
+/* ================= Login ================= */
+.login-screen {
+    flex: 1; background: #fff;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+}
+.login-form { width: 215px; display: flex; flex-direction: column; align-items: stretch; }
+.login-form svg.headset { align-self: center; margin-bottom: 18px; }
+.login-form label { font-size: 11px; color: #222; margin-bottom: 1px; }
+.login-form input {
+    border: 1px solid #aaa; height: 28px; padding: 2px 6px; font-size: 17px; margin-bottom: 12px;
+    user-select: text;
+}
+.login-form input:focus { outline: none; border-color: #4aa3e0; box-shadow: 0 0 0 1px #9fd0f2; }
+.btn-ingresar {
+    align-self: flex-end;
+    background: #d6284f; color: #fff; border: none; font-weight: bold; font-size: 12px;
+    padding: 7px 14px; border-radius: 3px; cursor: pointer; min-width: 75px;
+}
+.btn-ingresar:hover { background: #b81f41; }
+
+/* ================= App ================= */
+.app-screen { flex: 1; display: flex; flex-direction: column; min-height: 0; background: #fff; position: relative; }
+.topbar {
+    background: #6db3a4; color: #fff; height: 56px; min-height: 56px;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 8px 0 22px; position: relative;
+    transition: background 0.2s;
+}
+.topbar.in-call { background: #2b6d5b; }
+.campaign-title { font-size: 26px; font-weight: 300; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.top-icons { display: flex; align-items: center; gap: 4px; margin-right: 20px; position: relative; }
+.ti {
+    height: 38px; min-width: 38px; border-radius: 3px;
+    background: rgba(70,110,170,0.55);
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+}
+.ti.plain { background: transparent; }
+.ti:hover { background: rgba(70,110,170,0.8); }
+.ti.plain:hover { background: rgba(255,255,255,0.15); }
+.ring {
+    width: 32px; height: 32px; border-radius: 50%; border: 2px solid #fff;
+    display: flex; align-items: center; justify-content: center;
+}
+.chev { font-size: 14px; color: #fff; margin: 0 6px 0 2px; font-weight: bold; }
+.gap-lg { width: 18px; }
+.agent-box { text-align: right; cursor: pointer; min-width: 190px; position: relative; padding: 2px 6px; }
+.agent-box:hover { background: rgba(255,255,255,0.12); }
+.agent-name { font-size: 13px; text-transform: uppercase; line-height: 1.1; }
+.agent-status { font-size: 18px; line-height: 1.15; }
+.status-menu {
+    position: absolute; top: 100%; right: 0; width: 300px;
+    background: #fff; border: 1px solid #bbb; box-shadow: 2px 3px 10px rgba(0,0,0,0.3);
+    display: none; z-index: 1000; text-align: left;
+}
+.status-menu.active { display: block; }
+.status-item { display: flex; align-items: center; gap: 16px; padding: 10px 16px; cursor: pointer; font-size: 19px; color: #2e3270; }
+.status-item:hover { background: #e6e9f7; }
+.status-item svg { width: 28px; height: 28px; color: #111; flex-shrink: 0; }
+
+/* popup discado manual */
+.dial-popup {
+    position: absolute; top: 44px; left: -10px; width: 330px;
+    background: #ece9d8; border: 1px solid #707070; box-shadow: 3px 3px 10px rgba(0,0,0,0.3);
+    z-index: 2000; padding: 10px; color: #222;
+}
+.dial-popup .row { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+.dial-popup input[type=text] { flex: 1; border: 1px solid #7f9db9; padding: 2px 4px; height: 24px; user-select: text; }
+.btn-action {
+    background: linear-gradient(to bottom, #fff, #e4e4e4); border: 1px solid #7f9db9;
+    padding: 2px 14px; height: 24px; cursor: pointer; color: #111;
+}
+.btn-action:hover { background: #dce4f0; }
+
+/* cuerpo */
+.body { flex: 1; display: flex; min-height: 0; position: relative; }
+.left-col {
+    width: 230px; min-width: 230px; position: relative;
+    border-left: 8px solid #d5d5f2;
+}
+.call-tab {
+    display: flex; align-items: center; gap: 6px;
+    background: #c9c6c0; height: 48px; padding: 0 8px; margin-left: -8px; padding-left: 8px;
+}
+.call-tab .ring { border-color: #111; width: 34px; height: 34px; }
+.call-tab .plus { color: #28a745; font-weight: bold; }
+.call-tab .num { font-size: 16px; color: #222; }
+.sidebar { position: absolute; left: 0; bottom: 6px; display: flex; flex-direction: column; gap: 14px; padding-left: 4px; }
+.side-item { display: flex; align-items: center; gap: 14px; cursor: pointer; font-size: 15px; color: #111; }
+.side-item .ring { border-color: #111; width: 40px; height: 40px; border-width: 2px; background: #fff; }
+.side-item:hover .ring { background: #eef2f8; }
+
+.main { flex: 1; position: relative; min-width: 0; overflow: auto; background: #fff; }
+.call-view { display: flex; flex-direction: column; min-height: 100%; padding-right: 8px; }
+
+.mini-icons { display: flex; gap: 16px; align-items: center; height: 60px; padding: 6px 0 0 14px; }
+.mini-icons svg { width: 44px; height: 44px; cursor: pointer; }
+.call-title { font-size: 24px; color: #111; margin-top: 2px; padding-left: 4px; }
+.meta { display: flex; gap: 14px; padding-left: 6px; margin-top: 4px; }
+.meta .col .lbl { font-size: 14px; color: #111; }
+.meta .col .val { font-size: 14px; font-weight: bold; color: #111; user-select: text; }
+.name-row { display: flex; justify-content: space-between; align-items: flex-start; padding-left: 4px; margin-top: 4px; }
+.big-name { font-size: 24px; color: #111; line-height: 1.15; }
+.big-num { font-size: 24px; color: #111; line-height: 1.2; }
+.connected-box { text-align: right; padding-right: 6px; margin-top: 8px; }
+.connected-box .arrow { color: #28a745; font-size: 22px; font-weight: bold; }
+.connected-box .state { font-size: 20px; color: #111; }
+
+.ctrl-bar {
+    background: #c8c8f0; height: 52px; min-height: 52px; margin-top: 4px;
+    display: flex; align-items: center; justify-content: center; gap: 26px;
+    position: relative;
+}
+.cb { cursor: pointer; display: flex; align-items: center; justify-content: center; position: relative; }
+.hangup {
+    width: 50px; height: 50px; border-radius: 50%; border: 3px solid #d9232a; background: #fff;
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+}
+.hangup:hover { background: #fde8e8; }
+.timer { font-size: 22px; color: #111; letter-spacing: 0.5px; }
+
+/* menu de transferencia: lista de agentes */
+.transfer-menu {
+    position: absolute; top: 52px; left: 50%; transform: translateX(-50%);
+    width: min(560px, calc(100% - 12px)); max-height: 300px; overflow-y: auto;
+    background: #ededeb; border: 1px solid #bbb; box-shadow: 3px 3px 12px rgba(0,0,0,0.35);
+    z-index: 2000; padding: 6px 6px 0 6px;
+}
+.tr-head { position: sticky; top: -6px; background: #ededeb; padding: 6px 0 5px; margin-top: -6px; z-index: 2; }
+.tr-lbl { font-weight: 700; font-size: 15px; color: #111; margin-bottom: 3px; }
+.tr-row { display: flex; gap: 0; }
+.tr-row input { flex: 1; height: 30px; border: 1px solid #bbb; border-radius: 3px; padding: 2px 8px; font-size: 15px; user-select: text; background: #fff; min-width: 0; }
+.tr-row input:focus { outline: none; border-color: #3badc4; }
+.tr-call { background: #3badc4; color: #fff; border: 1px solid #2e95aa; border-radius: 0 3px 3px 0; font-weight: 700; font-size: 15px; width: 84px; cursor: pointer; }
+.tr-call:hover { background: #329bb0; }
+.agent-card {
+    display: flex; align-items: center; gap: 10px; background: #fff; border-radius: 3px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.35); padding: 5px 10px; margin-bottom: 5px; cursor: pointer;
+}
+.agent-card:hover { background: #e8f1fb; }
+.agent-card .txt { flex: 1; min-width: 0; }
+.agent-card .nm { font-weight: 800; font-size: 13px; color: #111; line-height: 1.1; overflow-wrap: anywhere; }
+.tr-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 6px; align-items: start; }
+.tr-col { min-width: 0; }
+.agent-card .us { font-size: 12px; color: #111; }
+.agent-card .dot { width: 14px; height: 14px; border-radius: 50%; background: #2e9a3e; flex-shrink: 0; }
+.agent-card svg { width: 28px; height: 28px; flex-shrink: 0; }
+
+/* audio */
+.audio-area { display: flex; justify-content: center; align-items: flex-start; gap: 22px; margin-top: 12px; }
+.audio-col { display: flex; flex-direction: column; align-items: center; }
+.audio-col .head { text-align: center; font-size: 14px; color: #111; }
+.audio-col .scale { font-size: 11px; color: #222; display: flex; gap: 14px; margin-bottom: 4px; }
+.slider-wrap { display: flex; gap: 12px; align-items: stretch; height: 230px; }
+.slider-track {
+    width: 6px; background: #d8d8f2; position: relative; cursor: pointer; margin: 0 6px;
+}
+.slider-handle {
+    position: absolute; left: -9px; width: 24px; height: 14px; background: #fff; border: 1px solid #bbb; pointer-events: none;
+}
+.level { width: 38px; background: #b8b8b0; position: relative; display: flex; align-items: flex-end; }
+.level .fill { width: 100%; background: linear-gradient(to top, #1fe01f, #55e04a); height: 55%; transition: height 0.4s; }
+.keypad { display: grid; grid-template-columns: repeat(4, 74px); gap: 5px; }
+.key {
+    height: 52px; background: #5fa99a; border: 1px solid #3f7f70; border-radius: 2px;
+    color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer;
+    line-height: 1;
+}
+.key:hover { background: #6bb5a6; }
+.key:active { background: #4c9486; }
+.key b { font-size: 24px; font-weight: normal; }
+.key small { font-size: 9px; margin-top: 2px; }
+
+.mute-row { display: flex; justify-content: center; gap: 36px; margin-top: 14px; align-items: center; }
+.mute-btn, .interr { display: flex; align-items: center; gap: 4px; cursor: pointer; font-size: 15px; color: #111; }
+.mute-btn .ring, .interr .ring { width: 34px; height: 34px; border-color: #111; background: #fff; }
+.mute-btn.muted { color: #d9232a; font-weight: bold; }
+.mute-btn.muted .ring { border-color: #d9232a; background: #fde8e8; }
+
+/* vista colgado por inactividad */
+.hungup-view { display: flex; justify-content: flex-end; padding: 14px 20px; height: 140px; }
+.red-x { color: #d9232a; font-weight: bold; font-size: 22px; cursor: pointer; line-height: 1; }
+
+/* resultado */
+.result-area { margin-top: auto; padding: 14px 4px 8px 4px; position: relative; }
+.result-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; position: relative; }
+.result-row label { font-size: 14px; color: #111; width: 82px; }
+.result-field {
+    flex: 1; background: #d6d6f5; height: 36px; display: flex; align-items: center; padding: 0 6px;
+    font-size: 22px; font-style: italic; color: #111; cursor: pointer; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+}
+.result-field.chosen { font-style: normal; font-size: 15px; }
+.clear-btn {
+    width: 36px; height: 36px; background: #b2b2b2; display: flex; align-items: center; justify-content: center; cursor: pointer; margin-left: 2px;
+}
+.clear-btn:hover { background: #9d9d9d; }
+.crm-input { border: 1px solid #aaa; height: 26px; width: 305px; user-select: text; padding: 2px 6px; }
+.crm-row { display: flex; align-items: center; justify-content: space-between; }
+.btn-guardar {
+    background: #6aa99c; color: #fff; border: none; height: 34px; padding: 0 20px; font-size: 15px; cursor: pointer; margin-right: 8px;
+}
+.btn-guardar:hover { background: #5a998c; }
+
+/* panel desplegable de resultado */
+.result-panel {
+    position: absolute; left: 90px; bottom: 100%; margin-bottom: -4px;
+    background: #fff; border: 1px solid #bbb; box-shadow: 3px 3px 10px rgba(0,0,0,0.35);
+    z-index: 3000; padding: 4px; width: 340px; max-width: 90%;
+}
+.rp-filter { display: block; width: 100%; height: 20px; border: 1px solid #aaa; padding: 1px 4px; font-size: 12px; user-select: text; background: #fff; margin-bottom: 4px; }
+.rp-filter:focus { outline: none; border-color: #4aa3e0; }
+.rp-tree { min-height: 32px; max-height: 230px; overflow-y: auto; border: 1px solid #e3e3e3; padding: 3px 0; }
+.rp-node { display: flex; align-items: center; gap: 4px; padding: 1px 4px; font-size: 12px; color: #111; cursor: default; }
+.rp-arrow { width: 14px; text-align: center; font-size: 10px; color: #555; cursor: pointer; flex-shrink: 0; }
+.rp-arrow:hover { color: #000; }
+.rp-item { padding: 1px 4px 1px 34px; font-size: 12px; line-height: 1.15; color: #111; cursor: pointer; white-space: nowrap; }
+.rp-item:hover { background: #cfe3fb; }
+
+/* Estadísticas */
+.stats-view { padding: 6px 28px 80px 28px; min-height: 100%; }
+.stats-h { color: #d6284f; font-weight: 700; font-size: 15px; border-bottom: 2px solid #d6284f; padding-bottom: 3px; margin: 10px 0 6px; }
+.res-grid { display: grid; grid-template-columns: repeat(5, 1fr); text-align: center; margin-bottom: 10px; }
+.res-grid b { font-size: 19px; display: block; color: #111; }
+.res-grid span { font-size: 11px; color: #222; }
+.stats-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.stat-row { display: flex; justify-content: space-between; padding: 3px 6px; font-size: 14px; color: #222; }
+.home-btn {
+    position: absolute; right: 16px; bottom: 16px; width: 60px; height: 52px; background: #fff;
+    border-radius: 10px; box-shadow: 0 1px 5px rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center;
+    cursor: pointer; z-index: 50;
+}
+.home-btn:hover { background: #eef4fb; }
+
+/* ================= Ventana minimizada ================= */
+.window.minimized { display: none !important; }
+
+/* ================= Navegador (CRM) ================= */
+.crm-window .title-strip { background: #c9d6ee; height: 34px; min-height: 34px; align-items: flex-end; padding: 4px 4px 0; }
+.crm-window .strip-info { gap: 0; align-items: flex-end; }
+.crm-tab {
+    display: flex; align-items: center; gap: 7px; background: #fff; color: #222;
+    border: 1px solid #8ea5d0; border-bottom: none; border-radius: 7px 7px 0 0;
+    height: 30px; padding: 0 12px; width: 230px;
+}
+.crm-tab .fav { color: #c1121f; font-size: 13px; }
+.crm-tab .ttl { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.crm-window .win-controls { gap: 2px; align-self: flex-start; margin-top: -2px; }
+.crm-toolbar { display: flex; align-items: center; gap: 6px; background: #fff; border-bottom: 1px solid #b8c3dc; padding: 4px 8px; flex-shrink: 0; }
+.crm-nav { width: 26px; height: 24px; border: none; background: transparent; border-radius: 3px; font-size: 15px; color: #444; cursor: default; }
+.crm-nav.dis { color: #bbb; }
+.crm-url { flex: 1; background: #eef1f8; border: 1px solid #c4cde2; border-radius: 12px; padding: 3px 12px; font-size: 12px; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ================= Barra de tareas ================= */
+.taskbar {
+    position: absolute; left: 0; right: 0; bottom: 0; height: 36px;
+    background: linear-gradient(to bottom, #3a6fd8, #245edb 40%, #1c4fc0);
+    border-top: 1px solid #5b8cf0;
+    display: flex; align-items: center; gap: 4px; padding: 0 4px;
+    z-index: 1000000;
+}
+.start-btn {
+    background: linear-gradient(to bottom, #4fae4f, #2e8b2e);
+    color: white; font-weight: bold; font-style: italic; font-size: 14px;
+    height: 28px; padding: 0 16px; border-radius: 0 10px 10px 0; display: flex; align-items: center;
+    text-shadow: 1px 1px 1px rgba(0,0,0,.4); margin-right: 8px;
+}
+.task-btn {
+    display: none; align-items: center; justify-content: center;
+    width: 40px; height: 30px; padding: 0; position: relative;
+    background: transparent; border: 1px solid transparent; border-radius: 3px; cursor: pointer;
+}
+.task-btn svg { width: 22px; height: 22px; display: block; }
+.task-btn.show { display: flex; }
+.task-btn::after { content: ""; position: absolute; left: 8px; right: 8px; bottom: 1px; height: 3px; border-radius: 2px; background: #bcd3ff; }
+.task-btn:hover { background: rgba(255,255,255,.22); border-color: rgba(255,255,255,.35); }
+.task-btn.active { background: rgba(255,255,255,.32); border-color: rgba(255,255,255,.5); }
+.task-btn.active::after { background: #fff; }
+.tray { margin-left: auto; color: #fff; background: #0f9bea; padding: 4px 12px; height: 28px; text-align: center; line-height: 1.2; border-left: 1px solid #0a6fb0; }
+.tray div { font-size: 11px; }
+
+/* ================= Pantalla de advertencia ================= */
+.welcome-screen {
+    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+    background: #f7fcfe;
+    display: flex; align-items: center; justify-content: center;
+    z-index: 2000000;
+    transition: opacity 0.35s ease;
+}
+.welcome-screen.fade-out { opacity: 0; pointer-events: none; }
+.welcome-box {
+    width: min(720px, 88vw);
+    display: flex; flex-direction: column; align-items: center;
+    padding: 0 10px;
+}
+.welcome-text {
+    width: 100%;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: clamp(18px, 2.6vw, 26px);
+    line-height: 1.35;
+    color: #111;
+    text-align: justify;
+    letter-spacing: 0.3px;
+}
+.welcome-btn {
+    margin-top: 44px;
+    background: #99dcf7; color: #000;
+    border: none; border-radius: 0;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 14px; font-weight: bold; letter-spacing: 0.3px;
+    padding: 6px 12px; min-width: 80px;
+    cursor: pointer;
+}
+.welcome-btn:hover { background: #7fcff0; }
+.welcome-btn:active { background: #6bc3e8; }
+.welcome-btn:focus-visible { outline: 2px solid #1f6f94; outline-offset: 2px; }
+</style>
+</head>
+<body>
+
+<!-- Pantalla de advertencia (se muestra antes del escritorio) -->
+<div class="welcome-screen" id="welcomeScreen">
+    <div class="welcome-box">
+        <p class="welcome-text">Estás a punto de entrar a un simulador creado con fines de capacitación por el equipo de formación; todos los datos que aquí se presentan son ficticios.</p>
+        <button type="button" class="welcome-btn" id="welcomeEnter" onclick="enterSimulator()">ENTRAR</button>
+    </div>
+</div>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+    <symbol id="ic-avail" viewBox="0 0 24 24"><circle cx="10.5" cy="13.5" r="7" fill="none" stroke="currentColor" stroke-width="2.6"/><rect x="8" y="1.5" width="5" height="2.6" fill="currentColor"/><path d="M10.5 9v5l3 2" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M14.5 19l3 3 5-6.500" fill="none" stroke="currentColor" stroke-width="2.6"/></symbol>
+    <symbol id="ic-unavail" viewBox="0 0 24 24"><circle cx="10.5" cy="13.5" r="7" fill="none" stroke="currentColor" stroke-width="2.6"/><rect x="8" y="1.5" width="5" height="2.6" fill="currentColor"/><path d="M10.5 9v5l3 2" fill="none" stroke="currentColor" stroke-width="2.2"/><rect x="15.500" y="16" width="2.600" height="7" fill="currentColor"/><rect x="20" y="16" width="2.600" height="7" fill="currentColor"/></symbol>
+    <symbol id="ic-bed" viewBox="0 0 24 24"><rect x="1.500" y="5" width="2.600" height="14" fill="currentColor"/><rect x="1.500" y="14.500" width="21" height="3" fill="currentColor"/><path d="M6 13.500h16.500V10a3 3 0 0 0-3-3h-6a3 3 0 0 0-3 3z" fill="currentColor"/><circle cx="7.500" cy="9" r="2.200" fill="currentColor"/><rect x="20" y="14.500" width="2.600" height="5" fill="currentColor"/></symbol>
+    <symbol id="ic-power" viewBox="0 0 24 24"><path d="M12 2.500v9" fill="none" stroke="currentColor" stroke-width="3.200" stroke-linecap="round"/><path d="M6.200 6.500a8.500 8.500 0 1 0 11.600 0" fill="none" stroke="currentColor" stroke-width="3.200" stroke-linecap="round"/></symbol>
+    <symbol id="ic-person" viewBox="0 0 40 40"><circle cx="20" cy="12" r="8" fill="#111"/><path d="M4 38c0-10 7-16 16-16s16 6 16 16z" fill="#111"/></symbol>
+    <symbol id="ic-agentphone" viewBox="0 0 40 40"><path d="M9 6c-3 1-5 4-4 8 2 8 8 16 16 20 3 1 6 0 8-2l-6-5-3 2c-3-2-6-5-8-8l2-3z" fill="#111"/><rect x="21" y="12" width="14" height="4" rx="2" fill="#111"/><rect x="21" y="21" width="14" height="4" rx="2" fill="#111"/></symbol>
+</defs></svg>
+
+<!-- Escritorio -->
+<div class="desktop">
+    <div class="desktop-icon"><div class="icon-img generic">💻</div><div class="icon-label">Mi Equipo</div></div>
+    <div class="desktop-icon"><div class="icon-img generic">📁</div><div class="icon-label">Documentos</div></div>
+    <div class="desktop-icon" onclick="openApp()"><div class="icon-img mitrol-icon">m%</div><div class="icon-label">IPPad Mitrol</div></div>
+    <div class="desktop-icon"><div class="icon-img generic">🌐</div><div class="icon-label">Navegador</div></div>
+</div>
+
+<!-- Ventana IPPad -->
+<div class="window hidden" id="appWindow">
+    <div class="rz" data-dir="n"></div><div class="rz" data-dir="s"></div><div class="rz" data-dir="e"></div><div class="rz" data-dir="w"></div>
+    <div class="rz" data-dir="ne"></div><div class="rz" data-dir="nw"></div><div class="rz" data-dir="se"></div><div class="rz" data-dir="sw"></div>
+    <div class="title-strip" id="titleBar">
+        <div class="strip-info">
+            <span class="ipad">iPad</span>
+            <span id="stripDate">--/-- --:--</span>
+            <span>v 4.10.24</span>
+            <span>ext 10020</span>
+            <span>MitACD efm-acd.mitrol.cloud</span>
+            <span>MitEx 172.26.7.7</span>
+            <span>Chat 172.26.7.3:8443/concordia</span>
+            <span id="stripLogin"></span>
+        </div>
+        <div class="win-controls">
+            <button class="win-btn" onclick="minimizeApp()" title="Minimizar">&#8211;</button>
+            <button class="win-btn" id="maxBtn" onclick="toggleMaximize()" title="Maximizar / Restaurar">&#9633;</button>
+            <button class="win-btn close" onclick="closeApp()" title="Cerrar">&#10005;</button>
+        </div>
+    </div>
+
+    <!-- LOGIN -->
+    <div class="login-screen" id="loginScreen">
+        <form class="login-form" onsubmit="event.preventDefault(); handleLogin();">
+            <svg class="headset" width="64" height="80" viewBox="0 0 64 80">
+                <path d="M12 38 C10 10, 54 10, 52 38" fill="none" stroke="#333" stroke-width="5" stroke-linecap="round"/>
+                <rect x="6" y="34" width="14" height="24" rx="6" fill="#555" stroke="#222" stroke-width="2"/>
+                <rect x="44" y="34" width="14" height="24" rx="6" fill="#555" stroke="#222" stroke-width="2"/>
+                <rect x="20" y="40" width="24" height="16" fill="#e8e8d8" stroke="#bbb"/>
+                <path d="M13 58 C13 72, 24 74, 30 74" fill="none" stroke="#222" stroke-width="2"/>
+                <ellipse cx="33" cy="74" rx="4" ry="3" fill="#222"/>
+            </svg>
+            <label for="loginId">Login ID</label>
+            <input type="text" id="loginId" required autocomplete="off">
+            <label for="password">Contraseña</label>
+            <input type="password" id="password" required autocomplete="off">
+            <button type="submit" class="btn-ingresar">Ingresar</button>
+        </form>
+    </div>
+
+    <!-- APP -->
+    <div class="app-screen hidden" id="appScreen">
+        <div class="topbar" id="topbar">
+            <div class="campaign-title" id="campaignTitle">inbound_OMT</div>
+
+            <div class="top-icons">
+                <!-- Llamar / discado manual -->
+                <div class="ti plain" onclick="toggleDialPopup(event)" title="Discado Manual">
+                    <div class="ring"><svg width="18" height="18" viewBox="0 0 24 24"><path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1C10.6 21 3 13.4 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1l-2.3 2.2z" fill="#fff"/></svg></div>
+                    <span class="chev">&#8964;</span>
+                </div>
+                <div class="ti plain" title="Chat">
+                    <div class="ring"><svg width="18" height="18" viewBox="0 0 24 24"><path d="M4 4h16v12H8l-4 4z" fill="#fff"/></svg></div>
+                    <span class="chev">&#8964;</span>
+                </div>
+                <div class="ti" title="Correo"><div class="ring"><svg width="18" height="18" viewBox="0 0 24 24"><path d="M3 6h18v12H3z" fill="none" stroke="#fff" stroke-width="2"/><path d="M3 7l9 7 9-7" fill="none" stroke="#fff" stroke-width="2"/></svg></div></div>
+                <div class="ti" title="SMS"><div class="ring"><svg width="18" height="18" viewBox="0 0 24 24"><path d="M4 4h16v12H8l-4 4z" fill="#fff"/></svg></div></div>
+                <div class="ti" title="Facebook"><div class="ring" style="font-weight:bold;font-size:20px;">f</div></div>
+                <div class="ti" title="Twitter"><div class="ring" style="font-size:16px;">&#128038;</div></div>
+                <div class="gap-lg"></div>
+                <div class="ti" title="Chat interno"><div class="ring"><svg width="18" height="18" viewBox="0 0 24 24"><path d="M4 4h16v12H8l-4 4z" fill="#fff"/></svg></div></div>
+                <div class="ti" title="Agenda"><div class="ring"><svg width="18" height="18" viewBox="0 0 24 24"><rect x="4" y="4" width="14" height="16" fill="none" stroke="#fff" stroke-width="2"/><path d="M8 9h6M8 13h6" stroke="#fff" stroke-width="2"/></svg></div></div>
+
+                <!-- Discado manual -->
+                <div class="dial-popup hidden" id="dialPopup" onclick="event.stopPropagation()">
+                    <div class="row">
+                        <label>Discado Manual</label>
+                        <input type="text" id="dialInput" value="95611709607">
+                        <button class="btn-action" onclick="triggerCallNow()">Llamar</button>
+                    </div>
+                    <div class="row" style="margin-bottom:0;">
+                        <span>Campaña <strong>Codigo Infarto OUT</strong> <span style="color:blue; cursor:pointer;">Cambiar</span></span>
+                        <button class="btn-action" style="margin-left:auto;">Preview</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="agent-box" onclick="toggleStatusMenu(event)">
+                <div class="agent-name" id="agentLabel">USUARIO (A) DE PRUEBA MITROL</div>
+                <div class="agent-status" id="currentStatusText">No Disponible</div>
+                <div class="status-menu" id="statusMenu" onclick="event.stopPropagation()">
+                    <div class="status-item" onclick="selectStatus('Disponible')"><svg><use href="#ic-avail"/></svg>Disponible</div>
+                    <div class="status-item" onclick="selectStatus('No Disponible')"><svg><use href="#ic-unavail"/></svg>No Disponible</div>
+                    <div class="status-item" onclick="selectStatus('Lunch')"><svg><use href="#ic-bed"/></svg>Lunch</div>
+                    <div class="status-item" onclick="selectStatus('Baño')"><svg><use href="#ic-bed"/></svg>Baño</div>
+                    <div class="status-item" onclick="selectStatus('CoachingCapacitacion')"><svg><use href="#ic-bed"/></svg>CoachingCapacitacion</div>
+                    <div class="status-item" onclick="selectStatus('CoachingCalidad')"><svg><use href="#ic-bed"/></svg>CoachingCalidad</div>
+                    <div class="status-item" onclick="logout()"><svg><use href="#ic-power"/></svg>Cerrar Sesión</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="home-btn hidden" id="homeBtn" onclick="closeStats()" title="Volver">
+            <svg width="40" height="36" viewBox="0 0 40 36"><path d="M20 2L2 18h5v16h9V23h8v11h9V18h5z" fill="#2f7fd1"/></svg>
+        </div>
+        <div class="body">
+            <div class="left-col">
+                <div class="call-tab hidden" id="callTab" onclick="closeStats()" style="cursor:pointer;">
+                    <div class="ring"><svg width="18" height="18" viewBox="0 0 24 24"><path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1C10.6 21 3 13.4 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1l-2.3 2.2z" fill="#111"/></svg></div>
+                    <span class="plus">+</span><span class="num">3311607912</span>
+                </div>
+                <div class="sidebar">
+                    <div class="side-item"><div class="ring"><svg width="18" height="18" viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2" fill="#111"/><path d="M11 8v7h4" stroke="#fff" stroke-width="2" fill="none"/></svg></div>Historial</div>
+                    <div class="side-item"><div class="ring"><svg width="18" height="18" viewBox="0 0 24 24"><path d="M4 6h3M10 6h10M4 12h3M10 12h10M4 18h3M10 18h10" stroke="#111" stroke-width="3"/></svg></div>Mensajes</div>
+                    <div class="side-item"><div class="ring"><svg width="18" height="18" viewBox="0 0 24 24"><path d="M14 3l7 7-2 1-3-1-4 4 1 5-2 1-3-5-5 5-1-1 5-5-5-3 1-2 5 1 4-4-1-3z" fill="#111"/></svg></div>Pendientes</div>
+                    <div class="side-item" onclick="openStats()"><div class="ring"><svg width="18" height="18" viewBox="0 0 24 24"><path d="M3 3v18h18" stroke="#111" stroke-width="2" fill="none"/><path d="M6 16l4-5 3 3 5-7" stroke="#111" stroke-width="2" fill="none"/></svg></div>Estadísticas</div>
+                </div>
+            </div>
+
+            <div class="main" id="mainArea">
+                <div class="stats-view hidden" id="statsView">
+                    <div class="stats-h">Resultados</div>
+                    <div class="res-grid">
+                        <div><b>0</b><span>Exitoso</span></div>
+                        <div><b>0</b><span>No Exitoso</span></div>
+                        <div><b>0</b><span>No Efectivo</span></div>
+                        <div><b>0</b><span>Neutro</span></div>
+                        <div><b>0</b><span>Otro</span></div>
+                    </div>
+                    <div class="stats-cols">
+                        <div><div class="stats-h">Tiempos</div><div id="statsTimes"></div></div>
+                        <div><div class="stats-h">Interacciones</div><div id="statsInter"></div></div>
+                    </div>
+                </div>
+
+                <div class="call-view hidden" id="callView">
+                    <div id="callDetails">
+                        <div class="mini-icons">
+                            <svg viewBox="0 0 48 48" title="Transferir"><circle cx="15" cy="14" r="8" fill="#2a2b5e"/><path d="M2 42c0-10 6-15 13-15s13 5 13 15z" fill="#2a2b5e"/><path d="M34 12h4a9 9 0 0 1 0 18h-5" fill="none" stroke="#2a2b5e" stroke-width="5"/><path d="M33 3L21 13l12 10z" fill="#2a2b5e"/></svg>
+                            <svg viewBox="0 0 48 48" title="Notas"><path d="M14 45h24a5 5 0 0 0 5-5V13" fill="none" stroke="#2a2b5e" stroke-width="3"/><rect x="11" y="7" width="27" height="34" rx="3" fill="#fff" stroke="#2a2b5e" stroke-width="3"/><path d="M20 7h14v22l-7-6-7 6z" fill="#2a2b5e"/><rect x="2" y="13" width="14" height="5" rx="2" fill="#2a2b5e"/><rect x="2" y="22" width="14" height="5" rx="2" fill="#2a2b5e"/><rect x="2" y="31" width="14" height="5" rx="2" fill="#2a2b5e"/><rect x="8" y="2" width="3" height="9" rx="1.5" fill="#2a2b5e"/></svg>
+                            <svg viewBox="0 0 48 48" title="Web"><rect x="3" y="5" width="36" height="28" fill="none" stroke="#2a2b5e" stroke-width="3"/><rect x="9" y="11" width="24" height="16" fill="none" stroke="#2a2b5e" stroke-width="2.5"/><circle cx="31" cy="30" r="13" fill="#fff" stroke="#2a2b5e" stroke-width="3.5"/><path d="M23 24c3-4 8-4 10-1-1 3-4 3-4 6-3 1-5-1-6-5zM33 32c3-1 6 1 5 4-2 3-4 3-5 1z" fill="#2a2b5e"/></svg>
+                            <svg viewBox="0 0 48 48" title="Grabaciones"><path d="M3 14l33-7 3 8-33 7z" fill="#2a2b5e"/><path d="M12 11l4 6M20 9l4 6M28 8l4 6" stroke="#fff" stroke-width="2.5"/><path d="M5 20l33-7 1 4-33 7z" fill="#fff" stroke="#2a2b5e" stroke-width="2"/><rect x="5" y="22" width="36" height="17" fill="#2a2b5e"/><path d="M11 26l4 6M19 26l4 6M27 26l4 6M35 26l3 5" stroke="#fff" stroke-width="2.5"/><path d="M14 39l-3 8M23 39v8M32 39l3 8" stroke="#2a2b5e" stroke-width="3"/></svg>
+                        </div>
+                        <div class="call-title">INBOUND OMT</div>
+                        <div class="meta">
+                            <div class="col"><div class="lbl">TELEFONO</div><div class="val">3311607912</div></div>
+                            <div class="col"><div class="lbl">IDLLAMADA</div><div class="val" id="idLlamada">—</div></div>
+                            <div class="col"><div class="lbl">sessionID</div><div class="val" id="sessionId">—</div></div>
+                        </div>
+                        <div class="name-row">
+                            <div>
+                                <div class="big-name">USUARIO(A)</div>
+                                <div class="big-num">3311607912</div>
+                            </div>
+                            <div class="connected-box">
+                                <div class="arrow">&#8592;</div>
+                                <div class="state" id="connState">Connected</div>
+                            </div>
+                        </div>
+
+                        <div class="ctrl-bar">
+                            <div class="cb" id="pauseBtn" onclick="togglePause()" title="Poner en espera">
+                                <svg width="24" height="24" viewBox="0 0 24 24" id="pauseIcon"><rect x="6" y="4" width="4" height="16" fill="#111"/><rect x="14" y="4" width="4" height="16" fill="#111"/></svg>
+                            </div>
+                            <div class="cb" onclick="toggleTransferMenu(event)" title="Transferir Llamada">
+                                <svg width="30" height="26" viewBox="0 0 30 26"><circle cx="11" cy="7" r="5" fill="#111"/><path d="M2 22c0-6 4-9 9-9s9 3 9 9z" fill="#111"/><path d="M22 6v8M18 10h8" stroke="#111" stroke-width="2.5"/></svg>
+                            </div>
+                            <div class="cb" title="Conferencia">
+                                <svg width="34" height="26" viewBox="0 0 34 26"><circle cx="17" cy="7" r="5" fill="#111"/><circle cx="6" cy="10" r="4" fill="#111"/><circle cx="28" cy="10" r="4" fill="#111"/><path d="M7 24c0-6 4-9 10-9s10 3 10 9z" fill="#111"/></svg>
+                            </div>
+                            <div class="hangup" onclick="hangUp()" title="Colgar">
+                                <svg width="26" height="26" viewBox="0 0 24 24"><path d="M2 14c0-4 5-6 10-6s10 2 10 6l-3 2-3-2v-2c-2-1-6-1-8 0v2l-3 2z" fill="#d9232a"/><path d="M12 22l-3-3h2v-3h2v3h2z" fill="#d9232a"/></svg>
+                            </div>
+                            <div class="timer" id="timer">00:00</div>
+                            <div class="cb" title="Calidad">
+                                <svg width="26" height="26" viewBox="0 0 24 24"><path d="M3 3v18h18" stroke="#111" stroke-width="2" fill="none"/><path d="M6 16l4-5 3 3 5-7" stroke="#111" stroke-width="2" fill="none"/></svg>
+                            </div>
+
+                            <!-- Menu de transferencia: lista de agentes -->
+                            <div class="transfer-menu hidden" id="transferMenu" onclick="event.stopPropagation()"></div>
+                        </div>
+
+                        <div class="audio-area">
+                            <div class="audio-col">
+                                <div class="head">Micrófono</div>
+                                <div class="scale"><span>0dB</span><span>-17dB</span></div>
+                                <div class="slider-wrap">
+                                    <div class="slider-track" onclick="moveHandle(event, this)"><div class="slider-handle" style="top:55%"></div></div>
+                                    <div class="level"><div class="fill" id="micLevel"></div></div>
+                                </div>
+                            </div>
+                            <div class="keypad">
+                                <div class="key"><b>1</b></div><div class="key"><b>2</b><small>ABC</small></div><div class="key"><b>3</b><small>DEF</small></div><div class="key"><b>A</b></div>
+                                <div class="key"><b>4</b><small>GHI</small></div><div class="key"><b>5</b><small>JKL</small></div><div class="key"><b>6</b><small>MNO</small></div><div class="key"><b>B</b></div>
+                                <div class="key"><b>7</b><small>PQRS</small></div><div class="key"><b>8</b><small>TUV</small></div><div class="key"><b>9</b><small>WXYZ</small></div><div class="key"><b>C</b></div>
+                                <div class="key"><b>*</b></div><div class="key"><b>0</b><small>OPER</small></div><div class="key"><b>#</b></div><div class="key"><b>D</b></div>
+                            </div>
+                            <div class="audio-col">
+                                <div class="head">Parlantes</div>
+                                <div class="scale"><span>-27dB</span><span>+13dB</span></div>
+                                <div class="slider-wrap">
+                                    <div class="level"><div class="fill" id="spkLevel" style="height:30%"></div></div>
+                                    <div class="slider-track" onclick="moveHandle(event, this)"><div class="slider-handle" style="top:20%"></div></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mute-row">
+                            <div class="mute-btn" id="muteBtn" onclick="toggleMute()" title="Silenciar / Desilenciar Micrófono">
+                                <div class="ring">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                                        <path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z" id="micBody" fill="#111"/>
+                                        <path d="M19 10v1a7 7 0 0 1-14 0v-1" id="micArc" stroke="#111" stroke-width="2" stroke-linecap="round"/>
+                                        <line x1="12" y1="18" x2="12" y2="22" id="micStem" stroke="#111" stroke-width="2"/>
+                                        <line x1="4" y1="3" x2="20" y2="21" id="muteCross" class="hidden" stroke="#d9232a" stroke-width="3" stroke-linecap="round"/>
+                                    </svg>
+                                </div>
+                                <span id="muteText">No Silenciado</span>
+                            </div>
+                            <div class="interr">
+                                <div class="ring"><svg width="18" height="18" viewBox="0 0 24 24"><path d="M3 9v6h4l5 4V5L7 9z" fill="#111"/><path d="M15 9c1.5 1.5 1.5 4.500 0 6" stroke="#111" stroke-width="2" fill="none"/></svg></div>
+                                <span>Interrupciones Permitidas</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Vista al colgar por inactividad (15 seg) -->
+                    <div id="hungupView" class="hungup-view hidden">
+                        <span class="red-x" onclick="endCall()" title="Cerrar">&#10005;</span>
+                    </div>
+
+                    <!-- Resultado / CRM -->
+                    <div class="result-area" id="resultArea">
+                        <div class="result-row">
+                            <label>Resultado</label>
+                            <div class="result-field" id="resultField" onclick="toggleResultPanel(event)">Resultado de gestión no seleccionado</div>
+                            <div class="clear-btn" onclick="clearResult()" title="Borrar selección">
+                                <svg width="22" height="18" viewBox="0 0 24 20"><path d="M8 1h14v18H8L1 10z" fill="#111"/><path d="M12 6l7 8M19 6l-7 8" stroke="#b2b2b2" stroke-width="2"/></svg>
+                            </div>
+                            <div class="result-panel hidden" id="resultPanel" onclick="event.stopPropagation()"></div>
+                        </div>
+                        <div class="crm-row">
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <label style="width:82px; font-size:14px;">ID CRM</label>
+                                <input type="text" class="crm-input" id="inputCRM">
+                            </div>
+                            <button class="btn-guardar" onclick="endCall()">Guardar</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Ventana CRM (se abre sola al entrar la llamada) -->
+<div class="window crm-window hidden" id="crmWindow">
+    <div class="rz" data-dir="n"></div><div class="rz" data-dir="s"></div><div class="rz" data-dir="e"></div><div class="rz" data-dir="w"></div>
+    <div class="rz" data-dir="ne"></div><div class="rz" data-dir="nw"></div><div class="rz" data-dir="se"></div><div class="rz" data-dir="sw"></div>
+    <div class="title-strip" id="crmTitleBar">
+        <div class="strip-info">
+            <div class="crm-tab"><span class="fav">&#10084;</span><span class="ttl">IMSS - OMT</span></div>
+        </div>
+        <div class="win-controls">
+            <button class="win-btn" onclick="minimizeWin('crmWindow')" title="Minimizar">&#8211;</button>
+            <button class="win-btn" id="crmMaxBtn" onclick="toggleMaximize('crmWindow','crmMaxBtn')" title="Maximizar / Restaurar">&#9633;</button>
+            <button class="win-btn close" onclick="closeCrm()" title="Cerrar">&#10005;</button>
+        </div>
+    </div>
+    <div class="crm-toolbar">
+        <button class="crm-nav dis" type="button" title="Atrás">&#9664;</button>
+        <button class="crm-nav" type="button" title="Recargar">&#8635;</button>
+        <div class="crm-url">crm.imss.gob.mx/omt/atencion</div>
+    </div>
+    <iframe class="crm-frame" id="crmFrame" title="CRM"></iframe>
+</div>
+
+<!-- Barra de tareas -->
+<div class="taskbar">
+    <div class="start-btn">inicio</div>
+    <div class="task-btn" id="tbAppWindow" onclick="taskClick('appWindow')" title="IPPad Mitrol">
+        <svg viewBox="0 0 24 24" fill="none">
+            <path d="M4.5 14v-2.5a7.5 7.5 0 0 1 15 0V14" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+            <rect x="2.8" y="12.5" width="4.4" height="7" rx="1.6" fill="#fff"/>
+            <rect x="16.8" y="12.5" width="4.4" height="7" rx="1.6" fill="#fff"/>
+            <path d="M19 19.5c0 1.8-1.8 2.6-4.5 2.6" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/>
+            <circle cx="13.6" cy="22" r="1.1" fill="#ffd54a"/>
+        </svg>
+    </div>
+    <div class="task-btn" id="tbCrmWindow" onclick="taskClick('crmWindow')" title="CRM - IMSS OMT">
+        <svg viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="9.2" stroke="#fff" stroke-width="1.8"/>
+            <ellipse cx="12" cy="12" rx="4" ry="9.2" stroke="#fff" stroke-width="1.5"/>
+            <path d="M3 12h18M4.4 7.5h15.2M4.4 16.5h15.2" stroke="#fff" stroke-width="1.4"/>
+        </svg>
+    </div>
+    <div class="tray"><div id="clockTime">--:--</div><div id="clockDate">--/--/----</div></div>
+</div>
+
+<script>
+/* ---------- Pantalla de advertencia: ENTRAR da acceso al escritorio ---------- */
+function enterSimulator() {
+    const s = document.getElementById('welcomeScreen');
+    if (!s || s.classList.contains('fade-out')) return;
+    s.classList.add('fade-out');
+    setTimeout(() => s.remove(), 400);
+}
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && document.getElementById('welcomeScreen')) enterSimulator();
+});
+document.addEventListener('DOMContentLoaded', () => {
+    const b = document.getElementById('welcomeEnter');
+    if (b) b.focus();
+});
+
+let timerInterval = null;
+let callTimeout = null;
+let inactivityTimer = null;
+let seconds = 0;
+let isCallActive = false;
+let loggedIn = false;
+let heldCall = false;
+const FIXED_USER_NAME = "USUARIO (A) DE PRUEBA MITROL";
+const $ = (id) => document.getElementById(id);
+
+/* ---------- Reloj de la barra superior ---------- */
+function updateStripDate() {
+    const d = new Date();
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    let h = d.getHours();
+    const ampm = h >= 12 ? 'p. m.' : 'a. m.';
+    h = h % 12 || 12;
+    const mi = String(d.getMinutes()).padStart(2, '0');
+    $('stripDate').innerText = `${dd}/${mm} ${String(h).padStart(2, '0')}:${mi} ${ampm}`;
+}
+updateStripDate();
+setInterval(updateStripDate, 20000);
+
+/* ---------- Tono de llamada ---------- */
+function playRingtone() {
+    try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc1 = audioCtx.createOscillator();
+        const osc2 = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+        osc1.type = 'sine'; osc2.type = 'sine';
+        osc1.frequency.setValueAtTime(440, audioCtx.currentTime);
+        osc2.frequency.setValueAtTime(480, audioCtx.currentTime);
+        gainNode.gain.setValueAtTime(0.08, audioCtx.currentTime);
+        osc1.connect(gainNode); osc2.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+        osc1.start(); osc2.start();
+        osc1.stop(audioCtx.currentTime + 1.2);
+        osc2.stop(audioCtx.currentTime + 1.2);
+    } catch (e) {
+        console.log("Audio no permitido sin interacción previa");
+    }
+}
+
+/* ---------- Opciones de Resultado ---------- */
+const resultOptions = ["OMT_Confirmado (COVID)","OMT_Contacto (COVID)","OMT_Dudas Generales (COVID)","OMT_Falla de Audio","OMT_Llamada De Prueba","OMT_Llamada OMT","OMT_No Procedente","OMT_Otros","OMT_Se Corta Llamada","OMT_Sospechoso (COVID)","OMT_Transferencia Medico","OMT_Transferencia Salud Mental","OMT_Codigo Cerebro","OMT_Programa PREVENIMSS","OMT_CHKT en línea"];
+const PLACEHOLDER = "Resultado de gestión no seleccionado";
+let resultExpanded = false;
+
+function updateResultList() {
+    const filter = $('resultFilter').value.trim().toLowerCase();
+    const list = $('rpList');
+    const show = resultExpanded || filter !== '';
+    $('rpArrow').textContent = show ? '◢' : '▷';
+    list.innerHTML = '';
+    if (!show) return;
+    resultOptions
+        .filter(item => item.toLowerCase().includes(filter))
+        .forEach(item => {
+            const d = document.createElement('div');
+            d.className = 'rp-item';
+            d.textContent = item;
+            d.addEventListener('click', () => pickResult(item));
+            list.appendChild(d);
+        });
+}
+function toggleResultTree() {
+    resultExpanded = !resultExpanded;
+    updateResultList();
+}
+function renderResultPanel() {
+    const panel = $('resultPanel');
+    resultExpanded = false;
+    panel.innerHTML = '<input type="text" class="rp-filter" id="resultFilter" autocomplete="off">' +
+        '<div class="rp-tree"><div class="rp-node"><span class="rp-arrow" id="rpArrow"></span><span>OMT</span></div><div id="rpList"></div></div>';
+    $('resultFilter').addEventListener('input', updateResultList);
+    $('rpArrow').addEventListener('click', toggleResultTree);
+    updateResultList();
+}
+function pickResult(val) {
+    const f = $('resultField');
+    f.textContent = val;
+    f.classList.add('chosen');
+    $('resultPanel').classList.add('hidden');
+}
+function toggleResultPanel(e) {
+    e.stopPropagation();
+    const panel = $('resultPanel');
+    if (panel.classList.contains('hidden')) {
+        closePopups('resultPanel');
+        renderResultPanel();
+        panel.classList.remove('hidden');
+    } else {
+        panel.classList.add('hidden');
+    }
+}
+function clearResult() {
+    const f = $('resultField');
+    f.textContent = PLACEHOLDER;
+    f.classList.remove('chosen');
+    $('resultPanel').classList.add('hidden');
+}
+function resetResultFields() {
+    clearResult();
+    $('inputCRM').value = "";
+}
+
+/* ---------- Cierre de menús al hacer clic fuera ---------- */
+function closePopups(except) {
+    ['statusMenu', 'dialPopup', 'transferMenu', 'resultPanel'].forEach(id => {
+        if (id === except) return;
+        const el = $(id);
+        if (id === 'statusMenu') el.classList.remove('active');
+        else el.classList.add('hidden');
+    });
+}
+document.addEventListener('click', () => closePopups());
+
+/* ---------- Ventana ---------- */
+let positioned = false;
+function openApp() {
+    const w = $('appWindow');
+    w.classList.remove('hidden', 'minimized');
+    if (!positioned) {
+        w.style.left = Math.max(0, (window.innerWidth - w.offsetWidth) / 2) + 'px';
+        w.style.top = Math.max(0, (window.innerHeight - 36 - w.offsetHeight) / 2) + 'px';
+        positioned = true;
+    }
+    bringToFront(w);
+}
+function minimizeApp() { minimizeWin('appWindow'); }
+function closeApp() {
+    $('appWindow').classList.add('hidden');
+    $('appWindow').classList.remove('minimized');
+    logout();
+    updateTaskbar();
+}
+function toggleMaximize(winId = 'appWindow', btnId = 'maxBtn') {
+    const w = $(winId);
+    w.classList.toggle('maximized');
+    $(btnId).innerHTML = w.classList.contains('maximized') ? '&#10064;' : '&#9633;';
+}
+
+/* ---------- Estados / auxiliares ---------- */
+function toggleStatusMenu(e) {
+    e.stopPropagation();
+    const m = $('statusMenu');
+    const open = m.classList.contains('active');
+    closePopups();
+    if (!open) m.classList.add('active');
+}
+function accumulateStatus() {
+    const now = Date.now();
+    if (stats.curSince) stats.times[stats.curStatus] = (stats.times[stats.curStatus] || 0) + (now - stats.curSince) / 1000;
+    stats.curSince = now;
+}
+function selectStatus(status) {
+    accumulateStatus();
+    stats.curStatus = status;
+    $('currentStatusText').innerText = status;
+    $('statusMenu').classList.remove('active');
+}
+
+/* ---------- Discado manual ---------- */
+function toggleDialPopup(e) {
+    e.stopPropagation();
+    const p = $('dialPopup');
+    const open = !p.classList.contains('hidden');
+    closePopups();
+    if (!open) p.classList.remove('hidden');
+}
+
+/* ---------- Transferencia ---------- */
+function toggleTransferMenu(e) {
+    e.stopPropagation();
+    const m = $('transferMenu');
+    const open = !m.classList.contains('hidden');
+    closePopups();
+    if (!open) {
+        m.classList.remove('hidden');
+        const i = $('transferInput');
+        if (i) { i.value = ''; i.focus(); }
+    }
+}
+const agents = [
+    ["PILOTO ENCUESTA OMT", ""], ["PILOTO ENCUESTA SALUD MENTAL", ""], ["PILOTO ENCUESTA CITA MEDICA", ""],
+    ["PILOTO ENCUESTA DERECHOHABIENTE", ""], ["PILOTO ENCUESTA OMTI", ""], ["CHRISTIAN VAZQUEZ", "CHVAZQUEZ"],
+    ["CLAUDIA TAPIA", "TAPIACLAU"]
+];
+const agentsRight = [
+    ["PALACIOS RUIZ CARLOS ANTONIO", "capalacios"],
+    ["VARGAS PEREZ ALEJANDRA ELIZABETH", "VPEREA"]
+];
+function makeAgentCard(name, user, icon) {
+    const c = document.createElement('div');
+    c.className = 'agent-card';
+    c.innerHTML = '<svg viewBox="0 0 40 40"><use href="#' + icon + '"/></svg><div class="txt"><div class="nm"></div><div class="us"></div></div><div class="dot"></div>';
+    c.querySelector('.nm').textContent = name;
+    c.querySelector('.us').textContent = user;
+    c.addEventListener('click', () => transferTo());
+    return c;
+}
+function renderAgents() {
+    const m = $('transferMenu');
+    m.innerHTML = '<div class="tr-head"><div class="tr-lbl">Nuevo</div><div class="tr-row"><input type="text" id="transferInput" autocomplete="off"><button class="tr-call" onclick="transferTo()">Llamar</button></div></div>';
+    $('transferInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') transferTo(); });
+    const grid = document.createElement('div');
+    grid.className = 'tr-grid';
+    const left = document.createElement('div');
+    left.className = 'tr-col';
+    const right = document.createElement('div');
+    right.className = 'tr-col';
+    agents.forEach(([name, user]) => left.appendChild(makeAgentCard(name, user, 'ic-agentphone')));
+    agentsRight.forEach(([name, user]) => right.appendChild(makeAgentCard(name, user, 'ic-person')));
+    grid.appendChild(left);
+    grid.appendChild(right);
+    m.appendChild(grid);
+}
+function transferTo() {
+    stats.transOut++;
+    endCall();   // la transferencia termina la llamada y deja al agente en Disponible
+}
+renderAgents();
+
+/* ---------- Login / Logout ---------- */
+function handleLogin() {
+    const loginId = $('loginId').value.trim();
+    const pass = $('password').value.trim();
+    if (!loginId || !pass) return;
+    loggedIn = true;
+    $('stripLogin').innerText = 'Login ID: ' + loginId;
+    $('loginScreen').classList.add('hidden');
+    $('appScreen').classList.remove('hidden');
+    $('agentLabel').innerText = FIXED_USER_NAME;
+    $('callView').classList.add('hidden');
+    $('callTab').classList.add('hidden');
+    $('topbar').classList.remove('in-call');
+    callOpen = false; statsOpen = false;
+    refreshTitle();
+    stats.times = {}; stats.entAt = 0; stats.transOut = 0;
+    stats.loginAt = Date.now(); stats.curSince = Date.now(); stats.curStatus = 'No Disponible';
+    selectStatus('No Disponible');   // al entrar queda en auxiliar No Disponible
+
+    clearTimeout(callTimeout);
+    callTimeout = setTimeout(triggerCallNow, 30000);
+}
+
+function logout() {
+    loggedIn = false;
+    stopTimer();
+    clearInactivityTimer();
+    clearTimeout(callTimeout);
+    resetResultFields();
+    closeCrm();
+    closePopups();
+    resetMute();
+    heldCall = false;
+    $('callView').classList.add('hidden');
+    $('callTab').classList.add('hidden');
+    $('topbar').classList.remove('in-call');
+    callOpen = false;
+    closeStats();
+    $('appScreen').classList.add('hidden');
+    $('loginScreen').classList.remove('hidden');
+    $('stripLogin').innerText = '';
+    $('loginId').value = "";
+    $('password').value = "";
+    selectStatus('No Disponible');
+}
+
+/* ---------- Llamada ---------- */
+function rnd(chars, n) {
+    let s = '';
+    for (let i = 0; i < n; i++) s += chars[Math.floor(Math.random() * chars.length)];
+    return s;
+}
+function fmtTime(s) {
+    const hrs = Math.floor(s / 3600);
+    const mins = Math.floor((s % 3600) / 60);
+    const secs = s % 60;
+    const mm = String(mins).padStart(2, '0');
+    const ss = String(secs).padStart(2, '0');
+    return hrs > 0 ? `${hrs}:${mm}:${ss}` : `${mm}:${ss}`;
+}
+function startTimer() {
+    seconds = 0;
+    $('timer').innerText = fmtTime(0);
+    clearInterval(timerInterval);
+    timerInterval = setInterval(() => {
+        seconds++;
+        $('timer').innerText = fmtTime(seconds);
+        $('micLevel').style.height = (isMuted ? 0 : 30 + Math.random() * 45) + '%';
+        $('spkLevel').style.height = (15 + Math.random() * 40) + '%';
+    }, 1000);
+}
+function stopTimer() { clearInterval(timerInterval); }
+
+function triggerCallNow() {
+    if (!loggedIn) return;
+    if (statsOpen) closeStats();
+    clearTimeout(callTimeout);
+    resetResultFields();
+    resetMute();
+    heldCall = false;
+    closePopups();
+
+    const d = new Date();
+    const p = (n) => String(n).padStart(2, '0');
+    $('idLlamada').innerText = `${String(d.getFullYear()).slice(2)}${p(d.getMonth() + 1)}${p(d.getDate())}${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}${rnd('0123456789', 3)}_MIT_02380`;
+    $('sessionId').innerText = rnd('0123456789abcdefghijklmnopqrstuvwxyz', 24);
+    $('connState').innerText = 'Connected';
+    $('pauseIcon').innerHTML = '<rect x="6" y="4" width="4" height="16" fill="#111"/><rect x="14" y="4" width="4" height="16" fill="#111"/>';
+
+    // Restaurar vista de llamada activa
+    $('callDetails').classList.remove('hidden');
+    $('hungupView').classList.add('hidden');
+    $('callView').classList.remove('hidden');
+    $('callTab').classList.remove('hidden');
+    $('topbar').classList.add('in-call');
+    callOpen = true;
+    stats.entAt++;
+    refreshTitle();
+
+    selectStatus('Conectado');
+    playRingtone();
+    startTimer();
+    openCrm();   // el CRM se abre solo al entrar la llamada
+
+    // La llamada solo termina cuando el agente cuelga (ya no hay corte por inactividad)
+    isCallActive = true;
+}
+
+function endCall() {
+    stopTimer();
+    clearInactivityTimer();
+    resetResultFields();
+    resetMute();
+    heldCall = false;
+    closePopups();
+    $('callView').classList.add('hidden');
+    $('callTab').classList.add('hidden');
+    callOpen = false;
+    $('topbar').classList.remove('in-call');
+    refreshTitle();
+    selectStatus('Disponible');
+}
+
+function togglePause() {
+    heldCall = !heldCall;
+    $('connState').innerText = heldCall ? 'En espera' : 'Connected';
+    $('pauseIcon').innerHTML = heldCall
+        ? '<path d="M6 4l14 8-14 8z" fill="#111"/>'
+        : '<rect x="6" y="4" width="4" height="16" fill="#111"/><rect x="14" y="4" width="4" height="16" fill="#111"/>';
+}
+
+/* ---------- Fin de llamada (sin corte por inactividad) ---------- */
+function resetInactivityTimer() { /* desactivado: la llamada ya no se cuelga sola */ }
+function clearInactivityTimer() {
+    isCallActive = false;
+    clearTimeout(inactivityTimer);
+}
+function hangUp() {
+    stopTimer();
+    clearInactivityTimer();
+    closePopups();
+    $('callDetails').classList.add('hidden');
+    $('hungupView').classList.remove('hidden');
+    selectStatus('AfterCall');   // al colgar queda en AfterCall hasta Guardar
+}
+
+/* ---------- Silenciar micrófono ---------- */
+let isMuted = false;
+function applyMuteUI() {
+    $('muteBtn').classList.toggle('muted', isMuted);
+    $('muteText').innerText = isMuted ? 'Silenciado' : 'No Silenciado';
+    $('muteCross').classList.toggle('hidden', !isMuted);
+    const color = isMuted ? '#d9232a' : '#111';
+    $('micBody').setAttribute('fill', color);
+    $('micArc').setAttribute('stroke', color);
+    $('micStem').setAttribute('stroke', color);
+}
+function toggleMute() { isMuted = !isMuted; applyMuteUI(); }
+function resetMute() { isMuted = false; applyMuteUI(); }
+
+/* ---------- Deslizadores de volumen (decorativos) ---------- */
+function moveHandle(e, track) {
+    const r = track.getBoundingClientRect();
+    const pct = Math.min(95, Math.max(0, ((e.clientY - r.top) / r.height) * 100));
+    track.querySelector('.slider-handle').style.top = pct + '%';
+}
+
+/* ---------- Estadísticas ---------- */
+const stats = { transOut: 0, entAt: 0, times: {}, loginAt: 0, curStatus: 'No Disponible', curSince: 0 };
+let callOpen = false, statsOpen = false, statsTimer = null;
+
+function refreshTitle() {
+    $('campaignTitle').innerText = statsOpen ? 'Estadísticas' : (callOpen ? 'Inbound_OMT' : 'inbound_OMT');
+}
+function statTime(sec) {
+    sec = Math.floor(sec);
+    if (sec <= 0) return '0';
+    const h = String(Math.floor(sec / 3600)).padStart(2, '0');
+    const m = String(Math.floor((sec % 3600) / 60)).padStart(2, '0');
+    const s = String(sec % 60).padStart(2, '0');
+    return `${h}:${m}:${s}`;
+}
+function statSecs(status) {
+    let t = stats.times[status] || 0;
+    if (stats.curStatus === status && stats.curSince) t += (Date.now() - stats.curSince) / 1000;
+    return t;
+}
+function renderStats() {
+    const rows = [
+        ['Login', (Date.now() - stats.loginAt) / 1000],
+        ['Disponible', statSecs('Disponible')],
+        ['No Disponible', statSecs('No Disponible')],
+        ['Baño', statSecs('Baño')],
+        ['Coaching_IMSS', statSecs('CoachingCapacitacion') + statSecs('CoachingCalidad')],
+        ['Refrigerio', 0],
+        ['Lunch', statSecs('Lunch')],
+        ['Falla', 0], ['Enviando_Correo', 0], ['In_Bound', 0], ['Tiempo_Personal', 0],
+        ['Conectado', statSecs('Conectado')],
+        ['Ring', 0], ['AfterCallWork', statSecs('AfterCall')], ['Retenido', 0], ['Preview', 0], ['Desconectado', 0]
+    ];
+    $('statsTimes').innerHTML = rows.map(r => `<div class="stat-row"><span>${r[0]}</span><span>${statTime(r[1])}</span></div>`).join('');
+    const inter = [
+        ['Discador: Abandonadas', 0], ['Discador: Atendidas', 0],
+        ['Entrantes: Abandonadas', 0], ['Entrantes: Atendidas', stats.entAt],
+        ['Salientes: Atendidas', 0], ['Salientes: No Atendidas', 0],
+        ['Transferencias Entrantes', 0], ['Transferencias Salientes', stats.transOut]
+    ];
+    $('statsInter').innerHTML = inter.map(r => `<div class="stat-row"><span>${r[0]}</span><span>${r[1]}</span></div>`).join('');
+}
+function openStats() {
+    if (!loggedIn) return;
+    closePopups();
+    statsOpen = true;
+    $('callView').classList.add('hidden');
+    $('statsView').classList.remove('hidden');
+    $('homeBtn').classList.remove('hidden');
+    refreshTitle();
+    renderStats();
+    clearInterval(statsTimer);
+    statsTimer = setInterval(renderStats, 1000);
+}
+function closeStats() {
+    if (!statsOpen) return;
+    statsOpen = false;
+    clearInterval(statsTimer);
+    $('statsView').classList.add('hidden');
+    $('homeBtn').classList.add('hidden');
+    if (callOpen) $('callView').classList.remove('hidden');
+    refreshTitle();
+}
+
+/* ---------- Ventanas: arrastrar, redimensionar y traer al frente ---------- */
+const MAX_BTN_OF = { appWindow: 'maxBtn', crmWindow: 'crmMaxBtn' };
+let zTop = 20;
+let focusedId = null;
+function bringToFront(w) { zTop++; w.style.zIndex = zTop; focusedId = w.id; updateTaskbar(); }
+
+/* ---------- Barra de tareas ---------- */
+function updateTaskbar() {
+    ['appWindow', 'crmWindow'].forEach(id => {
+        const w = $(id), btn = $('tb' + id.charAt(0).toUpperCase() + id.slice(1));
+        const open = !w.classList.contains('hidden');
+        btn.classList.toggle('show', open);
+        btn.classList.toggle('active', open && !w.classList.contains('minimized') && focusedId === id);
+    });
+}
+function minimizeWin(id) {
+    $(id).classList.add('minimized');
+    if (focusedId === id) focusedId = null;
+    updateTaskbar();
+}
+function taskClick(id) {
+    const w = $(id);
+    if (w.classList.contains('minimized')) { w.classList.remove('minimized'); bringToFront(w); }
+    else if (focusedId === id) minimizeWin(id);
+    else bringToFront(w);
+}
+function tickClock() {
+    const d = new Date(), p = n => String(n).padStart(2, '0');
+    $('clockTime').textContent = p(d.getHours()) + ':' + p(d.getMinutes());
+    $('clockDate').textContent = p(d.getDate()) + '/' + p(d.getMonth() + 1) + '/' + d.getFullYear();
+}
+tickClock(); setInterval(tickClock, 15000);
+
+function setupWindow(w, bar) {
+    let drag = null, size = null;
+    w.addEventListener('mousedown', () => bringToFront(w), true);
+    bar.addEventListener('mousedown', (e) => {
+        if (e.target.closest('.win-controls')) return;
+        if (w.classList.contains('maximized')) return;
+        drag = { ox: e.clientX - w.offsetLeft, oy: e.clientY - w.offsetTop };
+        w.classList.add('interacting');
+    });
+    w.querySelectorAll('.rz').forEach(h => {
+        h.addEventListener('mousedown', (e) => {
+            if (w.classList.contains('maximized')) return;
+            e.preventDefault(); e.stopPropagation();
+            const r = w.getBoundingClientRect();
+            size = { dir: h.dataset.dir, x: e.clientX, y: e.clientY, l: r.left, t: r.top, w: r.width, h: r.height };
+            w.classList.add('interacting');
+        });
+    });
+    document.addEventListener('mousemove', (e) => {
+        if (drag) {
+            w.style.left = (e.clientX - drag.ox) + 'px';
+            w.style.top = Math.max(0, e.clientY - drag.oy) + 'px';
+        }
+        if (size) {
+            const MINW = 640, MINH = 480;
+            const dx = e.clientX - size.x, dy = e.clientY - size.y;
+            let l = size.l, t = size.t, wd = size.w, ht = size.h;
+            if (size.dir.includes('e')) wd = Math.max(MINW, size.w + dx);
+            if (size.dir.includes('s')) ht = Math.max(MINH, size.h + dy);
+            if (size.dir.includes('w')) { wd = Math.max(MINW, size.w - dx); l = size.l + (size.w - wd); }
+            if (size.dir.includes('n')) { ht = Math.max(MINH, size.h - dy); t = size.t + (size.h - ht); }
+            w.style.width = wd + 'px';
+            w.style.height = ht + 'px';
+            w.style.left = l + 'px';
+            w.style.top = Math.max(0, t) + 'px';
+        }
+    });
+    document.addEventListener('mouseup', () => {
+        drag = null; size = null;
+        w.classList.remove('interacting');
+    });
+    bar.addEventListener('dblclick', (e) => {
+        if (e.target.closest('.win-controls')) return;
+        toggleMaximize(w.id, MAX_BTN_OF[w.id]);
+    });
+}
+setupWindow($('appWindow'), $('titleBar'));
+setupWindow($('crmWindow'), $('crmTitleBar'));
+
+/* ---------- CRM (Intracard): se abre solo al entrar la llamada ---------- */
+const CALL_ANI = '3311607912';
+const CRM_HTML = `<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IMSS - OMT<\/title>
+<style>
+* {
+box-sizing: border-box;
+margin: 0;
+padding: 0;
+font-family: Arial, Helvetica, sans-serif;
+font-size: 11px;
+}
+body {
+background-color: #ffffff;
+color: #333;
+}
+/* Top Bar */
+.top-bar {
+background-color: #000;
+color: #fff;
+display: flex;
+justify-content: space-between; 
+align-items: center;
+padding: 8px 15px; font-size: 11px;
+}
+.top-bar .title {
+font-weight: bold;
+font-size: 13px;
+}
+/* Container Principal */
+.main-container {
+display: flex;
+padding: 15px;
+gap: 15px;
+max-width: 1400px;
+margin: 0 auto;
+position: relative;
+}
+.left-panel {
+flex: 3;
+display: flex;
+flex-direction: column;
+gap: 15px;
+} 
+.right-panel {
+flex: 1;
+display: flex;
+flex-direction: column;
+gap: 4px; min-width: 250px;
+}
+/* Sections and Titles */
+.section-title {
+color: #777;
+font-weight: bold;
+text-transform: uppercase;
+font-size: 10px;
+margin-bottom: 6px;
+border-bottom: 1px solid #e0e0e0;
+padding-bottom: 2px;
+}
+.required {
+color: #d9534f;
+}
+/* Layout Grid */
+.row { 
+display: flex;
+gap: 10px;
+margin-bottom: 8px;
+align-items: flex-end;
+}
+.col {
+display: flex;
+flex-direction: column;
+gap: 2px; flex: 1;
+}
+/* Inputs & Selects */
+input[type="text"],
+input[type="date"],
+select,
+textarea {
+width: 100%;
+padding: 5px 8px;
+border: 1px solid #d0d7de;
+border-radius: 3px;
+background-color: #eef2f5;
+color: #333;
+outline: none;
+height: 28px; 
+}
+input[disabled], select[disabled], textarea[disabled] {
+background-color: #e5e7eb !important;
+color: #9ca3af !important;
+cursor: not-allowed;
+}
+input[type="text"]:focus, input[type="date"]:focus, select:focus, textarea:focus {
+background-color: #fff;
+border-color: #3b82f6;
+}
+textarea { height: auto;
+resize: vertical;
+}
+/* Field Group with icons/buttons */
+.input-group {
+display: flex;
+align-items: center;
+}
+.input-group input {
+border-top-right-radius: 0; 
+border-bottom-right-radius: 0;
+}
+.input-btn {
+background-color: #eef2f5;
+border: 1px solid #d0d7de;
+border-left: none;
+padding: 0 6px;
+height: 28px;
+cursor: pointer;
+display: flex;
+align-items: center;
+justify-content: center;
+border-top-right-radius: 3px;
+border-bottom-right-radius: 3px;
+}
+.input-btn:hover { background-color: #e2e8f0;
+}
+/* Lupa verde estilizada */
+.lupa-green-icon {
+width: 18px;
+height: 18px;
+border: 2px solid #2ecc71; 
+border-radius: 4px;
+display: flex;
+align-items: center;
+justify-content: center;
+background-color: #fff;
+position: relative;
+}
+.lupa-green-icon::before {
+content: '';
+width: 7px;
+height: 7px;
+border: 2px solid #2ecc71;
+border-radius: 50%;
+display: block;
+margin-left: -2px;
+margin-top: -2px;
+}
+.lupa-green-icon::after {
+content: ''; width: 4px;
+height: 2px;
+background-color: #2ecc71;
+display: block;
+position: absolute; 
+transform: rotate(45deg);
+bottom: 3px;
+right: 3px;
+}
+/* Checkbox & Radio inline */
+.inline-option {
+display: flex;
+align-items: center;
+gap: 4px;
+height: 28px;
+white-space: nowrap;
+}
+.radio-group {
+display: flex;
+gap: 10px;
+align-items: center;
+height: 28px;
+}
+/* NUEVA ESTRUCTURA PARA BOTONES DEL PANEL DERECHO */
+.top-panel-actions { display: flex;
+justify-content: space-between;
+align-items: center;
+width: 100%;
+margin-bottom: 6px;
+}
+.btn-historico {
+background-color: #3b82f6;
+color: white;
+border: none;
+padding: 6px 14px;
+border-radius: 4px;
+font-weight: bold;
+cursor: pointer;
+text-align: center;
+display: none; /* Se oculta por defecto hasta cargar paciente */
+width: fit-content;
+height: 28px;
+}
+.btn-historico:hover { 
+background-color: #2563eb;
+}
+/* BOTÓN HOME VERDE ALINEADO A LA DERECHA */
+.btn-home-inline { width: 56px;
+height: 56px;
+border-radius: 50%;
+background-color: #2ecc71;
+color: white;
+border: none;
+cursor: pointer;
+display: flex;
+align-items: center;
+justify-content: center;
+font-weight: bold;
+font-size: 32px;
+margin-left: auto; /* Empuja el botón a la extrema derecha */
+}
+.btn-home-inline:hover {
+background-color: #27ae60;
+}
+.btn-guardar {
+background-color: #2ecc71;
+color: white;
+border: none;
+padding: 6px 16px;
+border-radius: 4px;
+font-weight: bold;
+cursor: pointer;  align-self: flex-end;
+margin-top: 6px;
+display: flex;
+align-items: center;
+gap: 5px;
+font-size: 12px;
+}
+.btn-guardar:hover {
+background-color: #27ae60;
+}
+.umf-container {
+display: flex;
+align-items: center;
+gap: 5px;
+}
+.umf-actions {
+display: none;
+gap: 5px;
+align-items: center;
+}
+.btn-circle-action {
+width: 20px;
+height: 20px;
+border-radius: 50%;
+border: none; color: white;
+font-weight: bold;
+font-size: 12px;
+cursor: pointer;
+display: flex;
+align-items: center; 
+justify-content: center;
+line-height: 1;
+}
+.btn-green-plus {
+background-color: #00a86b;
+color: white;
+border: 1px solid #27ae60;
+border-radius: 3px;
+width: 24px;
+height: 28px;
+font-size: 16px;
+font-weight: bold;
+cursor: pointer;
+}
+.btn-yellow-minus {
+background-color: #f5b041;
+}
+.umf-info-box {
+display: none;
+background-color: #ffffff;  border: 1px solid #e0e0e0;
+padding: 10px 12px;
+margin-top: 8px;
+margin-bottom: 8px;
+border-radius: 3px;
+font-size: 10.5px;
+line-height: 1.6;
+color: #333;
+}
+.umf-info-box p {
+margin-bottom: 3px;
+}
+.umf-info-box strong {
+color: #111;
+text-transform: uppercase;
+}
+/* MODAL DE BÚSQUEDA Y HISTÓRICO */
+.modal-overlay {
+position: fixed;
+top: 0;
+left: 0;
+width: 100vw;
+height: 100vh; 
+background-color: rgba(0, 0, 0, 0.4);
+display: none; justify-content: center;
+align-items: center;
+z-index: 1000;
+}
+.modal-card {
+background-color: #fff;
+width: 95%;
+max-width: 1100px;
+border-radius: 4px;
+box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+overflow: hidden;
+}
+.modal-header {
+background-color: #f7f5f0;
+padding: 10px 15px;
+border-bottom: 1px solid #e0e0e0;
+display: flex;
+justify-content: space-between;
+align-items: center;
+}
+.modal-title { 
+color: #3b82f6;
+font-weight: bold;
+font-size: 14px;
+text-transform: uppercase;
+} 
+.modal-top-info {
+padding: 12px 15px;
+display: flex;
+justify-content: space-between;
+align-items: center;
+font-size: 11px;
+background-color: #fafafa;
+}
+.modal-top-info span {
+font-weight: bold;
+}
+.modal-table-container {
+max-height: 400px;
+overflow-x: auto;
+overflow-y: auto;
+}
+.modal-table { 
+width: 100%;
+border-collapse: collapse;
+text-align: left;
+}
+.modal-table th {
+padding: 8px 12px;
+border-bottom: 2px solid #ddd;
+font-size: 10px;
+color: #333; background-color: #f8fafc;
+text-transform: uppercase;
+}
+.modal-table td {
+padding: 10px 12px;
+border-bottom: 1px solid #eee;
+font-size: 10.5px;
+}
+.modal-table tbody tr {
+cursor: pointer;
+transition: background-color 0.2s;
+}
+.modal-table tbody tr:hover { 
+background-color: #e0f2fe !important;
+}
+.modal-table tbody tr:nth-child(even) {
+background-color: #f9fafb;
+}
+.modal-close-btn {
+background: none;
+border: none;
+font-size: 20px;
+cursor: pointer;
+color: #666;
+font-weight: bold;
+} 
+/* ESTILOS PARA MODAL DE OPERACIÓN EXITOSA (GUARDADO) */
+.success-modal-card {
+background-color: #fff;
+width: 340px;
+border-radius: 8px;
+padding: 25px 20px;
+box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+display: flex;
+flex-direction: column;
+align-items: center;
+text-align: center;
+font-family: Arial, sans-serif;
+}
+.success-icon-circle {
+width: 60px;
+height: 60px;
+border-radius: 50%;
+background-color: #e8f8f0;
+border: 2px solid #d1f2e1;
+display: flex;
+align-items: center;
+justify-content: center;
+margin-bottom: 15px;
+color: #2ecc71;
+font-size: 32px; font-weight: bold;
+}
+.success-title {
+font-size: 16px;
+font-weight: bold;
+color: #333;
+margin-bottom: 8px;
+}
+.success-folio {
+font-size: 10.5px;
+color: #666;
+margin-bottom: 20px;
+font-weight: bold;
+text-transform: uppercase;
+}
+.btn-ok-success {
+background-color: #2ecc71;
+color: white;
+border: none;
+padding: 7px 22px;
+border-radius: 4px;
+font-size: 12px;
+font-weight: bold;
+cursor: pointer;
+align-self: flex-end;
+} 
+.btn-ok-success:hover {
+background-color: #27ae60;
+}
+/* Estilos específicos para los centros de referencia de CP */
+.ref-card {
+background-color: #f8fafc;
+border: 1px solid #e2e8f0;
+border-radius: 4px;
+padding: 8px 10px;
+margin-top: 5px;
+font-size: 10px;
+line-height: 1.4;
+display: none; 
+}
+.ref-card strong {
+display: block;
+color: #1e293b;
+margin-bottom: 2px;
+}
+#showUmfInfoBtn {
+border-radius: 50% !important;
+width: 24px !important;
+height: 24px !important;
+}
+<\/style> 
+<\/head>
+<body>
+<\!-- Header / Top Bar -->
+<div class="top-bar">
+<div class="title">IMSS - OMT<\/div>
+<div>251113080S00001_MT_45231<\/div>
+<div id="currentDateTime"><\/div>
+<div>ANI: 5555555555<\/div>
+<div>USUARIO: USUARIO DESARROLLO DE PRUEBA<\/div>
+<\/div>
+<\!-- Main Form Area --> 
+<div class="main-container">
+<\!-- Left Main Panel -->
+<div class="left-panel">
+<\!-- DATOS GENERALES -->
+<div>
+<div class="section-title">Datos Generales<\/div>
+<\!-- Row 1 -->
+<div class="row">
+<div class="col" style="flex: 1.5;">
+<label>NSS<\/label>
+<div class="input-group">
+<input type="text" id="nssInput" value=""> <button type="button" class="input-btn" id="searchNssBtn" title="Buscar NSS">
+<div class="lupa-green-icon"><\/div>
+<\/button>
+<\/div> 
+<\/div>
+<div class="col" style="flex: 1.5;">
+<label>CURP<\/label>
+<div class="input-group">
+<input type="text" id="curpInput">
+<button type="button" class="input-btn" id="searchCurpBtn" title="Buscar CURP">
+<div class="lupa-green-icon"><\/div>
+<\/button>
+<\/div>
+<\/div>
+<div class="col" style="flex: 1;">
+<div class="inline-option">
+<input type="checkbox" id="no_proporciona">
+<label for="no_proporciona" style="font-weight: normal;">NO PROPORCIONA<\/label>
+<\/div>
+<\/div>
+<\/div>
+<\!-- Row 2 -->
+<div class="row">
+<div class="col"><label>Nombre <span class="required">*<\/span><\/label><input type="text" id="nombreInput"><\/div> 
+<div class="col"><label>Apellido Paterno <span class="required">*<\/span><\/label><input type="text" id="paternoInput"><\/div>
+<div class="col"><label>Apellido Materno<\/label><input type="text" id="maternoInput"><\/div> 
+<div class="col" style="flex: 0.5;"><label>Edad <span class="required">*<\/span><\/label><input type="text" id="edadInput"><\/div>
+<div class="col" style="flex: 1;">
+<label>Género <span class="required">*<\/span><\/label>
+<select id="generoSelect">
+<option value="">Seleccione una opción<\/option>
+<option value="Masculino">Masculino<\/option>
+<option value="Femenino">Femenino<\/option>
+<\/select>
+<\/div>
+<\/div>
+<\!-- Row 3 -->
+<div class="row">
+<div class="col"><label>Vigencia<\/label><input type="text" id="vigenciaInput"><\/div>
+<div class="col" style="flex: 1.4;">
+<label>UMF Adscripción<\/label>
+<div class="umf-container">
+<input type="text" id="umfInput">
+<div class="umf-actions" id="umfActions">
+<button type="button" class="btn-circle-action btn-green-plus" id="showUmfInfoBtn" title="Ver detalles UMF">+<\/button>
+<button type="button" class="btn-circle-action btn-yellow-minus" id="hideUmfInfoBtn" title="Ocultar detalles UMF">-<\/button> 
+<\/div>
+<\/div> 
+<\/div>
+<div class="col">
+<label>Parentesco 3era Persona:<\/label>
+<select id="parentescoSelect">
+<option>Seleccione una opción<\/option>
+<option>Es mi papá<\/option>
+<option>Es mi mamá<\/option>
+<option>Es mi hermano<\/option>
+<option>Es mi hermana<\/option>
+<option>Es mi abuelo<\/option>
+<option>Es mi abuela<\/option>
+<option>Es mi hijo<\/option>
+<option>Es mi hija<\/option>
+<option>Es mi primo<\/option>
+<option>Es mi prima<\/option>
+<option>Es mi esposo<\/option>
+<option>Es mi esposa<\/option>
+<option>Conocido<\/option>
+<\/select>
+<\/div>
+<div class="col">
+<label>Otro Parentesco:<\/label>
+<input type="text" id="otroParentescoInput">
+<\/div> 
+<\/div> 
+<\!-- DATOS DETALLADOS UMF -->
+<div class="umf-info-box" id="umfInfoBox">
+<p><strong>Unidad:<\/strong> UMF 79 TENAMPA<\/p>
+<p><strong>Dirección UMF:<\/strong> AVENIDA JUAREZ S/N COL. JARDINES DE LA VILLA NUEVA CP. 57960 CERRÓ TENAMPA, NEXTLALPAN, EDO. DE MÉX. ORIENTE<\/p>
+<p><strong>Teléfono UMF:<\/strong> 55 5774 9023<\/p>
+<p><strong>Dirección Subdelegación:<\/strong> VÍA MORELOS ESQUINA CASA NUEVA, COL. JARDINES DE LA VILLA NUEVA UMF 79, NEXTLALPAN, EDO. DE MEX. C.P. 57960<\/p>
+<p><strong>Teléfono Subdelegación:<\/strong> 5521-74-9388 EXT. 55201<\/p>
+<p><strong>Delegación:<\/strong> ESTADO DE MÉXICO ORIENTE<\/p>
+<p><strong>Dirección Delegación:<\/strong> CALLE 4 NÚMERO 25 FRACCIONAMIENTO ALCE BLANCO NAUCALPAN, ESTADO DE MÉXICO C.P. 89370<\/p>
+<p><strong>Teléfono Delegación:<\/strong> 5555767912/5556770552/5559766904 EXT. 59800<\/p>
+<\/div>
+<\!-- Row 4 -->
+<div class="row">
+<div class="col">
+<label>Entidad Federativa <span class="required">*<\/span><\/label>
+<select id="entidadSelect">
+<option value="">Seleccione una opción<\/option>
+<option value="Aguascalientes">Aguascalientes<\/option> 
+<option value="Baja California">Baja California<\/option>
+<option value="Baja California Sur">Baja California Sur<\/option> 
+<option value="Campeche">Campeche<\/option>
+<option value="Chiapas">Chiapas<\/option>
+<option value="Chihuahua">Chihuahua<\/option>
+<option value="Ciudad de México">Ciudad de México<\/option>
+<option value="Coahuila">Coahuila<\/option>
+<option value="Colima">Colima<\/option>
+<option value="Durango">Durango<\/option>
+<option value="Guanajuato">Guanajuato<\/option>
+<option value="Guerrero">Guerrero<\/option>
+<option value="Hidalgo">Hidalgo<\/option>
+<option value="Jalisco">Jalisco<\/option>
+<option value="Estado de México">Estado de México<\/option>
+<option value="Michoacán">Michoacán<\/option>
+<option value="Morelos">Morelos<\/option>
+<option value="Nayarit">Nayarit<\/option>
+<option value="Nuevo León">Nuevo León<\/option>
+<option value="Oaxaca">Oaxaca<\/option>
+<option value="Puebla">Puebla<\/option>
+<option value="Querétaro">Querétaro<\/option>
+<option value="Quintana Roo">Quintana Roo<\/option>
+<option value="San Luis Potosí">San Luis Potosí<\/option>
+<option value="Sinaloa">Sinaloa<\/option>
+<option value="Sonora">Sonora<\/option>
+<option value="Tabasco">Tabasco<\/option> 
+<option value="Tamaulipas">Tamaulipas<\/option>
+<option value="Tlaxcala">Tlaxcala<\/option> 
+<option value="Veracruz">Veracruz<\/option>
+<option value="Yucatán">Yucatán<\/option>
+<option value="Zacatecas">Zacatecas<\/option>
+<\/select>
+<\/div>
+<div class="col">
+<label>Tel. Contacto<\/label>
+<input type="text" id="telContactoInput" value="">
+<\/div>
+<div class="col">
+<label>Correo Electrónico<\/label>
+<input type="text" id="correoInput">
+<\/div>
+<\/div>
+<\/div>
+<\!-- MOTIVO DE LLAMADA -->
+<div>
+<div class="section-title">Motivo de Llamada<\/div>
+<\!-- Row 1 Motivo -->
+<div class="row">
+<div class="col">
+<label>Tipo de Orientación <span class="required">*<\/span><\/label>
+<select id="tipoOrientacionSelect"> 
+<option>Seleccione una opción<\/option> 
+<option>Orientación Médica<\/option>
+<option>Urgencia Médica<\/option>
+<option>Otras orientaciones<\/option>
+<\/select>
+<\/div>
+<div class="col">
+<label>Escenario <span class="required">*<\/span><\/label>
+<select id="escenarioSelect">
+<option>Seleccione una opción<\/option>
+<option>Manifestaciones clínicas de la enfermedad<\/option>
+<option>Interrupción Legal del Embarazo<\/option>
+<option>Derechohabiente que radica en el extranjero<\/option>
+<option>Código Cerebro<\/option>
+<option>Código Infarto<\/option>
+<option>Programa PREVENIMSS<\/option>
+<option>Oxígeno<\/option>
+<option>Profilaxis Pre-Exposición (PrEP)<\/option>
+<option>Vida Saludable<\/option>
+<option>Proceso Nueva Cirugía<\/option>
+<\/select>
+<\/div>
+<div class="col">
+<label>Tema de Orientación <span class="required">*<\/span><\/label>
+<select id="temaOrientacionSelect">
+<option>Seleccione una opción<\/option>
+<option>Recibió consulta y tratamiento, continúa con sintomatología<\/option>  
+<option>Prescripción del tratamiento farmacológico<\/option>
+<option>Estudios de laboratorio complementarios para el diagnóstico<\/option>
+<option>Estudios radiográficos complementarios para el diagnóstico<\/option>
+<option>Curaciones y retiro de puntos<\/option>
+<option>Efectos adversos de medicamentos<\/option>
+<option>Efectos adversos de vacunas<\/option>
+<option>Anticoncepción<\/option>
+<option>Medidas generales e higiénico dietéticas<\/option>
+<option>Medidas preventivas (diferentes a la vacunación)<\/option>
+<option>Aplicación de vacunas<\/option>
+<option>Automedicación Antipiréticos<\/option>
+<option>Automedicación Analgésicos<\/option>
+<option>Automedicación antiespasmódicos<\/option>
+<option>Automedicación antibióticos<\/option>
+<option>Automedicación<\/option>
+<option>Manifestaciones clínicas de la enfermedad<\/option>
+<\/select>
+<\/div>
+<\/div>
+<\!-- Row 2 Motivo -->
+<div class="row">
+<div class="col" style="flex: 0.8;">
+<label>¿Cuenta con estudio confirmatorio?<\/label>
+<div class="radio-group"> 
+<label style="font-weight: normal;"><input type="radio" name="estudio" checked> SÍ<\/label>
+<label style="font-weight: normal;"><input type="radio" name="estudio"> NO<\/label> 
+<\/div>
+<\/div>
+<div class="col" style="flex: 1.1;">
+<label>FUM:<\/label>
+<div class="input-group">
+<input type="date" id="fumInput">
+<\/div>
+<\/div>
+<div class="col" style="flex: 0.9;">
+<div class="inline-option" style="margin-top: 15px;">
+<input type="checkbox" id="no_fum">
+<label for="no_fum" style="font-weight: normal;">NO PROPORCIONA FUM<\/label>
+<\/div>
+<\/div>
+<div class="col" style="flex: 0.8;">
+<label>Edad Gestacional:<\/label>
+<input type="text" id="edadGestacionalInput" value="0.0" readonly style="background-color: #f1f5f9; font-weight: bold;">
+<\/div>
+<\/div>
+<\!-- Row CÓDIGO POSTAL Y CENTROS DE REFERENCIA --> 
+<div class="row">
+<div class="col" style="flex: 1;">
+<label>CÓDIGO POSTAL<\/label>
+<div class="input-group">
+<input type="text" id="cpInput" placeholder="Ej. 58300"> <button type="button" class="input-btn" id="searchCpBtn" title="Buscar Centros por C.P.">
+<div class="lupa-green-icon"><\/div>
+<\/button>
+<\/div>
+<\/div>
+<\!-- Opción 1 -->
+<div class="col" style="flex: 1.2;">
+<label>CENTRO DE REFERENCIA OPCIÓN 1<\/label>
+<div class="input-group">
+<input type="text" id="refOp1Input" readonly value="">
+<button type="button" class="btn-green-plus" id="toggleRef1Btn">+<\/button>
+<\/div>
+<div class="ref-card" id="refCard1">
+<strong>NOMBRE: <span id="ref1Nombre">-<\/span><\/strong>
+<strong>DOMICILIO: <span id="ref1Dom">-<\/span><\/strong>
+<\/div>
+<\/div>
+<\!-- Opción 2 --> 
+<div class="col" style="flex: 1.2;">
+<label>CENTRO DE REFERENCIA OPCIÓN 2<\/label>
+<div class="input-group">
+<input type="text" id="refOp2Input" readonly value="">
+<button type="button" class="btn-green-plus" id="toggleRef2Btn">+<\/button>
+<\/div>
+<div class="ref-card" id="refCard2"> 
+<strong>NOMBRE: <span id="ref2Nombre">-<\/span><\/strong>
+<strong>DOMICILIO: <span id="ref2Dom">-<\/span><\/strong>
+<\/div>
+<\/div>
+<\!-- Opción 3 -->
+<div class="col" style="flex: 1.2;">
+<label>CENTRO DE REFERENCIA OPCIÓN 3<\/label>
+<div class="input-group">
+<input type="text" id="refOp3Input" readonly value="">
+<button type="button" class="btn-green-plus" id="toggleRef3Btn">+<\/button>
+<\/div>
+<div class="ref-card" id="refCard3">
+<strong>NOMBRE: <span id="ref3Nombre">-<\/span><\/strong>
+<strong>DOMICILIO: <span id="ref3Dom">-<\/span><\/strong>
+<\/div>
+<\/div>
+<\/div> 
+<\!-- Row 3 Nota -->
+<div class="row">
+<div class="col">
+<label>Nota de Orientación Médica <span class="required">*<\/span><\/label>
+<textarea id="notaInput" rows="4"><\/textarea>
+<\/div>
+<\/div>
+<\!-- Row 4 Diagnóstico & Derivación -->
+<div class="row"> <div class="col">
+<label>Diagnóstico de Ingreso CIE <span class="required">*<\/span><\/label>
+<select id="diagnosticoCieSelect">
+<option value="">Seleccione un diagnóstico CIE<\/option>
+<option value="1A00">1A00 | Cólera<\/option>
+<option value="J00">J00 | Nasofaringitis aguda (Resfriado común)<\/option>
+<option value="J18">J18 | Neumonía de organismo no especificado<\/option>
+<option value="I10">I10 | Hipertensión esencial (primaria)<\/option>
+<option value="E11">E11 | Diabetes mellitus tipo 2<\/option>
+<option value="A09">A09 | Gastroenteritis y colitis de origen infeccioso<\/option>
+<option value="K29">K29 | Gastritis y duodenitis<\/option>
+<option value="J45">J45 | Asma<\/option> 
+<option value="M54.5">M54.5 | Lumbago no especificado<\/option>
+<option value="N39.0">N39.0 | Infección de vías urinarias, sitio no especificado<\/option>
+<option value="B34.9">B34.9 | Infección viral, no especificada<\/option>
+<option value="R51">R51 | Cefalea (Dolor de cabeza)<\/option>
+<option value="K02">K02 | Caries dental<\/option>
+<option value="H10">H10 | Conjuntivitis<\/option>
+<option value="L03">L03 | Celulitis (Infección cutánea)<\/option>
+<\/select>
+<\/div>
+<div class="col">
+<label>Derivacion:<\/label>
+<select id="derivacionSelect">
+<option>Seleccione una opción<\/option> 
+<option>Manejo en domicilio<\/option>
+<option>Primer nivel de atención<\/option>
+<option>Servicio de Urgencias<\/option>
+<option>Centro de Referencia<\/option>
+<\/select>
+<\/div>
+<\/div>
+<\/div>
+<\/div>
+<\!-- Right Side Panel -->
+<div class="right-panel"> 
+<\!-- ACCIONES SUPERIORES (HISTÓRICO A LA IZQ Y HOME VERDE A LA DER) -->
+<div class="top-panel-actions">
+<button type="button" class="btn-historico" id="btnToggleHistorico">Histórico<\/button>
+<button type="button" class="btn-home-inline" id="btnHomeInline" title="Inicio">&#8962;<\/button>
+<\/div>
+<div class="section-title">Tipificación<\/div>
+<div class="col">
+<label>Tipo de Interacción <span class="required">*<\/span><\/label>
+<select id="tipoInteraccionSelect">
+<option>Seleccione una opción<\/option>
+<option value="Procedente">Procedente<\/option>
+<option value="No procedente">No procedente<\/option> 
+<\/select>
+<\/div>
+<div class="col">
+<label>Tipo de Usuario <span class="required">*<\/span><\/label>
+<select id="tipoUsuarioSelect">
+<option>Seleccione una opción<\/option>
+<option value="Derechohabiente">Derechohabiente<\/option>
+<option value="No Derechohabiente">No Derechohabiente<\/option>
+<option value="Llamada de Tercero">Llamada de Tercero<\/option>
+<option value="Mexicano en el extranjero">Mexicano en el extranjero<\/option>
+<\/select>
+<\/div>
+<div class="col">
+<label>Resultado de la Interacción <span class="required">*<\/span><\/label> 
+<select id="resultadoInteraccionSelect">
+<option>Seleccione una opción<\/option>
+<option value="Orientación brindada">Orientación brindada<\/option>
+<option value="Falla en sistema o herramientas">Falla en sistema o herramientas<\/option>
+<option value="Usuario finaliza interacción">Usuario finaliza interacción<\/option>
+<option value="Interacción de prueba">Interacción de prueba<\/option>
+<option value="Interacción Nociva">Interacción Nociva<\/option>
+<option value="Transferencia a otro servicio">Transferencia a otro servicio<\/option>
+<\/select>
+<\/div>
+<div class="col"> 
+<label>Detalle de la Interacción <span class="required">*<\/span><\/label>
+<textarea id="detalleInteraccionInput" rows="5"><\/textarea>
+<\/div>
+<button type="button" class="btn-guardar" id="btnGuardar">Guardar<\/button>
+<\/div>
+<\/div>
+
+<\!-- MODAL DE BÚSQUEDA DE DERECHOHABIENTES Y HISTÓRICO -->
+<div class="modal-overlay" id="searchModal">
+<div class="modal-card"> 
+<div class="modal-header">
+<div class="modal-title" id="modalTitle">Resultado de Búsqueda de Derechohabientes<\/div>
+<button type="button" class="modal-close-btn" id="closeModalBtn">&times;<\/button>
+<\/div>
+<div class="modal-top-info" id="modalTopInfo">
+<div>NSS / Criterio Búsqueda: <span id="modalNssTarget"><\/span><\/div>
+<div>Registros encontrados: <span id="modalCount"><\/span><\/div>
+<\/div>
+<div class="modal-table-container">
+<table class="modal-table">
+<thead id="modalTableHead">
+<tr>
+<th>NSS<\/th>
+<th>Agregado<\/th> 
+<th>Nombre Completo<\/th>
+<th>CURP<\/th>
+<th>Edad<\/th>
+<th>Género<\/th>
+<th>Vigencia<\/th>
+<th>UMF<\/th>
+<\/tr>
+<\/thead>
+<tbody id="modalResultsBody">
+<\!-- Se llena dinámicamente --> 
+<\/tbody>
+<\/table>
+<\/div>
+<\/div>
+<\/div>
+
+<\!-- MODAL DE CONFIRMACIÓN OPERACIÓN EXITOSA -->
+<div class="modal-overlay" id="successModal">
+<div class="success-modal-card">
+<div class="success-icon-circle">&#10003;<\/div>
+<div class="success-title">Operacion exitosa<\/div>
+<div class="success-folio" id="successFolioText">SU FOLIO ES: IMSSOMT181125000044<\/div>
+<button type="button" class="btn-ok-success" id="btnSuccessOk">OK<\/button>
+<\/div>
+<\/div> 
+
+<\!-- JAVASCRIPT LOGIC -->
+<script>
+// DB USUARIOS FICTICIOS
+const dbUsuarios = [
+{ nss: "9206874442", agregado: "1M1987OR", nombre: "MARIA LUISA", paterno: "SANCHEZ", materno: "PEREZ", curp: "MASP870412MDFRPR01", edad: "39", genero: "Femenino", vigencia: "CON DERECHO", umf: "UMF 79 TENAMPA" },
+{ nss: "9206874442", agregado: "1M1985OR", nombre: "CARLOS", paterno: "FUENTES", materno: "GARCIA", curp: "CAFG850920HDFRPR03", edad: "41", genero: "Masculino", vigencia: "CON DERECHO", umf: "UMF 79 TENAMPA" },
+{ nss: "9206874442", agregado: "2F2015OR", nombre: "SOFIA", paterno: "HERNANDEZ", materno: "LOPEZ", curp: "HELS150210MDFRPR09", edad: "11", genero: "Femenino", vigencia: "CON DERECHO", umf: "UMF 79 TENAMPA" },
+{ nss: "4501823391", agregado: "1M1982OR", nombre: "ROBERTO CARLOS", paterno: "JUAREZ", materno: "SANTOYO", curp: "ROJS820115HMCNRR04", edad: "44", genero: "Masculino", vigencia: "CON DERECHO", umf: "UMF 10 XALAPA" },
+{ nss: "4501823391", agregado: "1F1984OR", nombre: "ANABELLA", paterno: "RODRIGUEZ", materno: "MEJIA", curp: "ROMA840612FMCNRR02", edad: "42", genero: "Femenino", vigencia: "CON DERECHO", umf: "UMF 10 XALAPA" },
+{ nss: "1298442018", agregado: "1F1990OR", nombre: "VALERIA", paterno: "GOMEZ", materno: "CRUZ", curp: "GOCV900330MJCSRR05", edad: "36", genero: "Femenino", vigencia: "CON DERECHO", umf: "UMF 01 AGUASCALIENTES" } 
+];
+
+// HISTORIAL FICTICIO DE INTERACCIONES
+const dbHistorico = [
+{ id: "251114185601723_MIT_21489", fecha: "2025-11-14T18:58:40", ejecutivo: "COLINOMTA", nombre: "JULIETA TADEO FERNANDEZI", tipificacion: "RECIBIÓ CONSULTA Y TRATAMIENTO, CONTINÚA CON SINTOMATOLOGÍA", nota: "FEMENINA DE 39 AÑOS PADECE DE SINTOMATOLOGÍA RESPIRATORIA..." }, 
+{ id: "251107010303397_MIT_24499", fecha: "2025-11-07T01:05:47", ejecutivo: "GUZCUMAU", nombre: "JULIETA TADEO FERNANDEZ", tipificacion: "INTERRUPCIÓN DE AUDIO", nota: "147/85 10 PM 12 PM 146/89 PACIENTE REFIERE INTERRUPCIÓN DE COMUNICACIÓN..." },
+{ id: "251107002733342_MIT_21499", fecha: "2025-11-07T00:30:13", ejecutivo: "VALGARJUA", nombre: "JULIETA TADEO FERNANDEZ", tipificacion: "LLAMADA CORTADA", nota: "ROSA MARIA DE 77 AÑOS, SE COMUNICA PARA CONSULTAR SOBRE PRESIÓN ARTERIAL..." },
+{ id: "251107002143866_MIT_24499", fecha: "2025-11-07T00:24:12", ejecutivo: "ARTEAGAJOMTA", nombre: "JULIETA TADEO FERNANDEZ", tipificacion: "LLAMADA CORTADA", nota: "REFIERE DERECHOHABIENTE LE HABÍAN INDICADO CAMBIO DE MEDICAMENTO..." },
+{ id: "251106085000600_MIT_24497", fecha: "2025-11-06T09:00:33", ejecutivo: "ALONSOOMT", nombre: "JULIETA TADEO FERNANDEZ", tipificacion: "MANIFESTACIONES CLÍNICAS DE LA ENFERMEDAD", nota: "FEMENINO 77A , APP : HAS ESTABA TOMANDO TRATAMIENTO REGULAR..." }
+];
+
+// BASE DE DATOS FICTICIA DE CENTROS DE REFERENCIA POR CP
+const dbCentrosCP = {
+"58300": [
+{ id: "170349062151", nombre: "HGR 1 TENZONTLE", dom: "AVENIDA BOSQUES DE LOS OLIVOS S/N INT 101 PUEBLO LA GOLETA CHARO LA GOLETA CP 61303" }, 
+{ id: "170902012151", nombre: "HGZ 8 TEZOZOMOC", dom: "CALZADA BENITO JUÁREZ S/N INT S/N LINDA VISTA URUAPAN VERACRUZ CP 60020" },
+{ id: "171303012151", nombre: "HGZ 4 LA VIGA", dom: "AVENIDA PASEO DE LOS ALMENDROS S/N INT S/N LA LUNETA ZAMORA ZAMORA DE CUAUTEPEC CP 59680" }
+],
+"default": [
+{ id: "150101012151", nombre: "HGR 25 ALLENDE", dom: "CALZADA IGNACIO ZARAGOZA #1840 COL. EJÉRCITO CONSTITUCIONALISTA CP 09220 CDMX" }, 
+{ id: "150201012151", nombre: "HGZ 24 MONTES DE OCA", dom: "AV. INSURGENTES NORTE #1322 COL. CAPULTITLÁN CP 07370 CDMX" },
+{ id: "150301012151", nombre: "HGZ 1A LOMAS DE TEHUACAN", dom: "CALLE DE LOS LEONES S/N COL. LOMAS CP 11200 CDMX" }
+]
+};
+
+// ELEMENTOS DOM
+const noProporcionaCheck = document.getElementById('no_proporciona');
+const tipoUsuarioSelect = document.getElementById('tipoUsuarioSelect');
+const fumInput = document.getElementById('fumInput');
+const noFumCheck = document.getElementById('no_fum');
+const edadGestacionalInput = document.getElementById('edadGestacionalInput');
+const btnToggleHistorico = document.getElementById('btnToggleHistorico');
+
+// Campos a controlar en deshabilitación general
+const inputsToControl = [
+document.getElementById('nssInput'),
+document.getElementById('curpInput'), 
+document.getElementById('nombreInput'),
+document.getElementById('paternoInput'),
+document.getElementById('maternoInput'),
+document.getElementById('edadInput'),
+document.getElementById('generoSelect'),
+document.getElementById('vigenciaInput'),
+document.getElementById('umfInput'),
+document.getElementById('parentescoSelect'), 
+document.getElementById('otroParentescoInput')
+];
+
+// LÓGICA DE INHABILITACIÓN POR "NO PROPORCIONA" O "NO DERECHOHABIENTE"
+function actualizarEstadoCampos() {
+const isNoProporciona = noProporcionaCheck.checked;
+const isNoDerechohabiente = (tipoUsuarioSelect.value === 'No Derechohabiente');
+const deshabilitar = isNoProporciona || isNoDerechohabiente;
+inputsToControl.forEach(el => {
+if (el) {
+el.disabled = deshabilitar;
+if (deshabilitar && el.tagName === 'INPUT') el.value = '';
+if (deshabilitar && el.tagName === 'SELECT') el.selectedIndex = 0;
+}
+}); 
+}
+noProporcionaCheck.addEventListener('change', actualizarEstadoCampos);
+tipoUsuarioSelect.addEventListener('change', actualizarEstadoCampos);
+
+// CÁLCULO DE EDAD GESTACIONAL (Semanas.Días)
+function calcularEdadGestacional() {
+if (noFumCheck.checked || !fumInput.value) {
+edadGestacionalInput.value = "0.0";
+return;
+} 
+const fumDate = new Date(fumInput.value);
+const hoy = new Date();
+if (isNaN(fumDate.getTime()) || fumDate > hoy) {
+edadGestacionalInput.value = "0.0";
+return;
+}
+const diffTime = Math.abs(hoy - fumDate);
+const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+const semanas = Math.floor(diffDays / 7);
+const diasRestantes = diffDays % 7; 
+edadGestacionalInput.value = \`\${semanas}.\${diasRestantes}\`;
+}
+fumInput.addEventListener('change', calcularEdadGestacional);
+noFumCheck.addEventListener('change', function() {
+if (this.checked) {
+fumInput.value = '';
+fumInput.disabled = true;
+edadGestacionalInput.value = '0.0';
+} else {
+fumInput.disabled = false;
+}
+});
+
+// BÚSQUEDA POR CÓDIGO POSTAL Y REPOSITORIO DE OPCIONES
+document.getElementById('searchCpBtn').addEventListener('click', function() {
+const cp = document.getElementById('cpInput').value.trim(); 
+const centros = dbCentrosCP[cp] || dbCentrosCP["default"];
+// Cargar Opción 1
+document.getElementById('refOp1Input').value = centros[0].id;
+document.getElementById('ref1Nombre').innerText = centros[0].nombre;
+document.getElementById('ref1Dom').innerText = centros[0].dom;
+// Cargar Opción 2
+document.getElementById('refOp2Input').value = centros[1].id; 
+document.getElementById('ref2Nombre').innerText = centros[1].nombre;
+document.getElementById('ref2Dom').innerText = centros[1].dom;
+// Cargar Opción 3
+document.getElementById('refOp3Input').value = centros[2].id;
+document.getElementById('ref3Nombre').innerText = centros[2].nombre;
+document.getElementById('ref3Dom').innerText = centros[2].dom;
+});
+
+// Toggles para desplegar detalles de centro de referencia
+function setupRefToggle(btnId, cardId) {
+document.getElementById(btnId).addEventListener('click', function() {
+const card = document.getElementById(cardId);
+if (card.style.display === 'block') {
+card.style.display = 'none';
+this.innerText = '+';
+} else {
+card.style.display = 'block';
+this.innerText = '-';
+} 
+});
+}
+setupRefToggle('toggleRef1Btn', 'refCard1');
+setupRefToggle('toggleRef2Btn', 'refCard2');
+setupRefToggle('toggleRef3Btn', 'refCard3'); 
+
+// BÚSQUEDA DERECHOHABIENTE Y HISTÓRICO MODAL LOGIC
+const searchModal = document.getElementById('searchModal');
+const closeModalBtn = document.getElementById('closeModalBtn');
+const modalTitle = document.getElementById('modalTitle');
+const modalTopInfo = document.getElementById('modalTopInfo');
+const modalTableHead = document.getElementById('modalTableHead');
+const modalResultsBody = document.getElementById('modalResultsBody');
+
+// EVENTOS DE BÚSQUEDA (CON LÓGICA DE FILTRADO APLICADA)
+document.getElementById('searchNssBtn').addEventListener('click', () => {
+    const valorNss = document.getElementById('nssInput').value.trim();
+    abrirModalBusqueda('nss', valorNss);
+});
+
+document.getElementById('searchCurpBtn').addEventListener('click', () => {
+    const valorCurp = document.getElementById('curpInput').value.trim();
+    abrirModalBusqueda('curp', valorCurp);
+});
+
+function abrirModalBusqueda(tipoBusqueda, valorBuscado) {
+    modalTitle.innerText = "Resultado de Búsqueda de Derechohabientes";
+    modalTopInfo.style.display = "flex";
+    
+    // Filtramos la base de datos de usuarios según lo que hayan tipeado
+    let resultadosFiltrados = dbUsuarios;
+    if (valorBuscado !== "") {
+        if (tipoBusqueda === 'nss') {
+            resultadosFiltrados = dbUsuarios.filter(u => u.nss.includes(valorBuscado));
+        } else if (tipoBusqueda === 'curp') {
+            resultadosFiltrados = dbUsuarios.filter(u => u.curp.includes(valorBuscado.toUpperCase()));
+        }
+    }
+    
+    // Actualizamos las etiquetas de información
+    document.getElementById('modalNssTarget').innerText = valorBuscado || "Mostrar Todos";
+    document.getElementById('modalCount').innerText = resultadosFiltrados.length;
+
+    modalTableHead.innerHTML = \`
+    <tr>
+    <th>NSS<\/th>
+    <th>Agregado<\/th> 
+    <th>Nombre Completo<\/th>
+    <th>CURP<\/th>
+    <th>Edad<\/th>
+    <th>Género<\/th> 
+    <th>Vigencia<\/th>
+    <th>UMF<\/th>
+    <\/tr>
+    \`;
+    modalResultsBody.innerHTML = "";
+    
+    // Poblamos la tabla solo con los registros filtrados
+    resultadosFiltrados.forEach(user => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = \`
+        <td>\${user.nss}<\/td>
+        <td>\${user.agregado}<\/td>
+        <td>\${user.nombre} \${user.paterno} \${user.materno}<\/td>
+        <td>\${user.curp}<\/td>
+        <td>\${user.edad}<\/td>
+        <td>\${user.genero}<\/td>
+        <td>\${user.vigencia}<\/td>
+        <td>\${user.umf}<\/td>
+        \`;
+        tr.addEventListener('click', () => {
+            document.getElementById('nssInput').value = user.nss;
+            document.getElementById('curpInput').value = user.curp;
+            document.getElementById('nombreInput').value = user.nombre;
+            document.getElementById('paternoInput').value = user.paterno; 
+            document.getElementById('maternoInput').value = user.materno;
+            document.getElementById('edadInput').value = user.edad;
+            document.getElementById('generoSelect').value = user.genero; 
+            document.getElementById('vigenciaInput').value = user.vigencia;
+            document.getElementById('umfInput').value = user.umf;
+            document.getElementById('umfActions').style.display = 'flex';
+            // MOSTRAR EL BOTÓN HISTÓRICO AL CARGAR PACIENTE
+            btnToggleHistorico.style.display = 'inline-block';
+            searchModal.style.display = 'none';
+        });
+        modalResultsBody.appendChild(tr);
+    });
+    searchModal.style.display = 'flex';
+}
+
+// MOSTRAR MODAL HISTÓRICO
+btnToggleHistorico.addEventListener('click', function() {
+modalTitle.innerText = "HISTÓRICO DE INTERACCIONES";
+modalTopInfo.style.display = "none";
+modalTableHead.innerHTML = \`
+<tr>
+<th>IDINTERACCION<\/th>
+<th>FECHAINICIO<\/th>
+<th>EJECUTIVO<\/th> 
+<th>NOMBRE<\/th>
+<th>TIPIFICACION<\/th>
+<th>NOTAOMT<\/th>
+<\/tr> \`;
+const nombreActual = (document.getElementById('nombreInput').value + " " + document.getElementById('paternoInput').value + " " + document.getElementById('maternoInput').value).trim() || "ROSA MARIA BANDERA NERI";
+
+modalResultsBody.innerHTML = "";
+dbHistorico.forEach(item => {
+const tr = document.createElement('tr');
+tr.innerHTML = \`
+<td><strong>\${item.id}<\/strong><\/td>
+<td>\${item.fecha}<\/td>
+<td>\${item.ejecutivo}<\/td>
+<td>\${nombreActual}<\/td>
+<td>\${item.tipificacion}<\/td>
+<td>\${item.nota}<\/td>
+\`;
+modalResultsBody.appendChild(tr);
+});
+searchModal.style.display = 'flex';
+});
+
+closeModalBtn.addEventListener('click', () => {
+searchModal.style.display = 'none'; 
+}); 
+
+// DETALLES UMF
+document.getElementById('showUmfInfoBtn').addEventListener('click', () => {
+document.getElementById('umfInfoBox').style.display = 'block';
+});
+document.getElementById('hideUmfInfoBtn').addEventListener('click', () => {
+document.getElementById('umfInfoBox').style.display = 'none';
+});
+
+// LÓGICA DE GUARDADO Y MODAL DE OPERACIÓN EXITOSA
+const btnGuardar = document.getElementById('btnGuardar');
+const successModal = document.getElementById('successModal');
+const successFolioText = document.getElementById('successFolioText');
+const btnSuccessOk = document.getElementById('btnSuccessOk');
+
+btnGuardar.addEventListener('click', function() {
+// Generar número de folio dinámico
+const randomNum = Math.floor(100000000000 + Math.random() * 900000000000);
+successFolioText.innerText = \`SU FOLIO ES: IMSSOMT\${randomNum}\`;
+successModal.style.display = 'flex';
+});
+
+// EVENTO AL PRESIONAR "OK" EN EL MODAL DE GUARDADO (RESET DEL FORMULARIO Y REGRESO A INICIO)
+function resetFormulario() { 
+// Limpiar inputs de texto
+const allInputs = document.querySelectorAll('input[type="text"], input[type="date"], textarea');
+allInputs.forEach(input => input.value = '');
+// Resetear selects
+const allSelects = document.querySelectorAll('select');
+allSelects.forEach(select => select.selectedIndex = 0);
+// Resetear checkboxes
+const allCheckboxes = document.querySelectorAll('input[type="checkbox"]');
+allCheckboxes.forEach(cb => cb.checked = false);
+// Ocultar detalles UMF y centros de referencia
+document.getElementById('umfInfoBox').style.display = 'none';
+document.getElementById('umfActions').style.display = 'none';
+['refCard1', 'refCard2', 'refCard3'].forEach(id => {
+const card = document.getElementById(id);
+if(card) card.style.display = 'none';
+});
+// Ocultar botón Histórico
+btnToggleHistorico.style.display = 'none';
+// Reactivar campos en caso de que estuvieran inhabilitados
+actualizarEstadoCampos(); 
+// Ocultar modales
+successModal.style.display = 'none';
+}
+
+btnSuccessOk.addEventListener('click', resetFormulario);
+
+// FUNCIONALIDAD DEL BOTÓN HOME INLINE
+document.getElementById('btnHomeInline').addEventListener('click', resetFormulario);
+
+// Reloj en tiempo real
+setInterval(() => {
+const now = new Date();
+document.getElementById('currentDateTime').innerText = now.toLocaleString('es-MX');
+}, 1000);
+<\/script>
+<script>
+(function () {
+    var last = 0;
+    function send(m) { try { parent.postMessage(m, '*'); } catch (e) {} }
+    ['mousedown', 'keydown', 'mousemove', 'touchstart'].forEach(function (evt) {
+        window.addEventListener(evt, function () {
+            var now = Date.now();
+            if (evt === 'mousemove' && now - last < 300) return;
+            last = now;
+            send({ crm: 'activity', evt: evt });
+        }, true);
+    });
+    var ok = document.getElementById('btnSuccessOk');
+    if (ok) ok.addEventListener('click', function () { send({ crm: 'close' }); });
+    window.addEventListener('message', function (e) {
+        var d = e.data;
+        if (!d || d.crm !== 'init') return;
+        var bar = document.querySelectorAll('.top-bar > div');
+        if (bar[1] && d.callId) bar[1].textContent = d.callId;
+        if (bar[3] && d.ani) bar[3].textContent = 'ANI: ' + d.ani;
+    });
+    send({ crm: 'ready' });
+})();
+<\/script>
+<\/body>
+<\/html>`;
+/*END_CRM_HTML*/
+const crmWin = $('crmWindow');
+const crmFrame = $('crmFrame');
+
+function openCrm() {
+    crmWin.classList.remove('maximized');
+    $('crmMaxBtn').innerHTML = '&#9633;';
+    crmWin.style.width = '';
+    crmWin.style.height = '';
+    crmWin.classList.remove('hidden', 'minimized');
+    const base = $('appWindow');
+    const r = base.classList.contains('hidden') ? { left: 20, top: 20 } : base.getBoundingClientRect();
+    const left = Math.max(0, Math.min(r.left + 50, window.innerWidth - crmWin.offsetWidth));
+    const top = Math.max(0, Math.min(r.top + 40, window.innerHeight - 36 - crmWin.offsetHeight));
+    crmWin.style.left = left + 'px';
+    crmWin.style.top = top + 'px';
+    bringToFront(crmWin);
+    // formulario limpio en cada llamada
+    crmFrame.srcdoc = CRM_HTML + '\n<' + '!-- ' + Date.now() + ' --' + '>';
+}
+function closeCrm() {
+    crmWin.classList.add('hidden');
+    crmWin.classList.remove('maximized', 'minimized');
+    if (focusedId === 'crmWindow') focusedId = null;
+    updateTaskbar();
+    $('crmMaxBtn').innerHTML = '&#9633;';
+    crmFrame.removeAttribute('srcdoc');
+}
+window.addEventListener('message', (e) => {
+    if (e.source !== crmFrame.contentWindow) return;
+    const d = e.data;
+    if (!d || !d.crm) return;
+    if (d.crm === 'ready') {
+        crmFrame.contentWindow.postMessage({ crm: 'init', callId: $('idLlamada').innerText, ani: CALL_ANI }, '*');
+    } else if (d.crm === 'activity') {
+        if (d.evt === 'mousedown') { bringToFront(crmWin); closePopups(); }
+        if (isCallActive) resetInactivityTimer();   // trabajar en el CRM cuenta como actividad
+    } else if (d.crm === 'close') {
+        closeCrm();   // se cierra solo al dar Guardar y OK en el CRM
+    }
+});
+</script>
+</body>
+</html>
